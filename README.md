@@ -48,15 +48,19 @@ GNOME Shell Wayland (protocolo não suportado).
 
 ### Sessão de teste na VM (labwc)
 
-Não cole o conteúdo do `.desktop` no terminal. Na VM:
+Não cole o conteúdo do `.desktop` no terminal. Na VM (Fedora XFCE / LightDM):
 
 ```bash
 sudo dnf install -y labwc
 cd ~/tuxi && git pull && cargo build -p tuxi-panel
 ./scripts/install-dev-session.sh
+sudo ./scripts/install-dev-session.sh   # LightDM lista /usr/share/xsessions
 ```
 
-Logout → escolha **TUXI (labwc)** na tela de login → Virt-Manager em fullscreen.
+Logout → escolha **TUXI (labwc)** → Virt-Manager em fullscreen.
+
+Se a sessão não aparecer: Ctrl+Alt+F3, login no TTY, depois
+`dbus-run-session -- ~/.local/bin/tuxi-labwc-session` (voltar ao gráfico: Ctrl+Alt+F1 ou F2).
 
 ### Qualidade
 

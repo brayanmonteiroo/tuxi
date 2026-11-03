@@ -1,0 +1,7 @@
+[Desktop Entry]
+Name=TUXI (labwc)
+Comment=Compositor labwc + painel TUXI (desenvolvimento)
+Exec=dbus-run-session -- tuxi-labwc-session
+TryExec=tuxi-labwc-session
+Type=Application
+DesktopNames=TUXI
