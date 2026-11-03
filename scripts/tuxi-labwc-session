@@ -1,22 +1,19 @@
 #!/usr/bin/env bash
 # Sessão de desenvolvimento: labwc + painel TUXI.
 #
-# Para tela CHEIA (não janela "wlroots - X11"):
-#   1) Logout até a tela de login, OU
-#   2) Virt-Manager → Send Key → Ctrl+Alt+F3 → login no TTY
-#   3) dbus-run-session -- ~/.local/bin/tuxi-labwc-session
+# Instalação tipica (sudo): /usr/local/bin/tuxi-labwc-session
+# Painel: $HOME/tuxi/target/debug/tuxi-panel
 #
-# Se rodar de um terminal DENTRO do XFCE/Plasma, o labwc aninha em X11
-# (janela preta) — igual testar no host. Use TUXI_ALLOW_NESTED=1 só se for proposital.
+# LightDM precisa do TryExec em path mundial (/usr/local/bin), não em ~/.local —
+# o usuário "lightdm" não lê /home/<user> (permissão 700).
 
 set -euo pipefail
-
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 PANEL_CANDIDATES=(
   "${TUXI_PANEL:-}"
   "${HOME}/tuxi/target/debug/tuxi-panel"
   "${HOME}/.cargo/bin/tuxi-panel"
+  "/usr/local/bin/tuxi-panel"
 )
 
 PANEL=""
@@ -28,35 +25,44 @@ for candidate in "${PANEL_CANDIDATES[@]}"; do
 done
 
 if [[ -z "${PANEL}" ]]; then
-  echo "tuxi-panel não encontrado. Compile com: cargo build -p tuxi-panel" >&2
-  exit 1
+  echo "tuxi-panel não encontrado em ${HOME}/tuxi/target/debug/tuxi-panel" >&2
+  echo "Compile com: cd ~/tuxi && cargo build -p tuxi-panel" >&2
+  # Ainda sobe o labwc para não ficar em loop de login; sem painel.
+  PANEL=""
 fi
 
 if ! command -v labwc >/dev/null 2>&1; then
-  echo "labwc não encontrado. Instale com: sudo dnf install labwc" >&2
+  echo "labwc não encontrado. sudo dnf install labwc" >&2
   exit 1
 fi
 
-# Evita o “abriu uma janela” sem perceber.
-if [[ -z "${TUXI_ALLOW_NESTED:-}" ]]; then
-  if [[ -n "${DISPLAY:-}" || -n "${WAYLAND_DISPLAY:-}" ]]; then
-    echo "ERRO: já existe sessão gráfica (DISPLAY=${DISPLAY:-} WAYLAND_DISPLAY=${WAYLAND_DISPLAY:-})." >&2
-    echo "O labwc vai abrir só como JANELA aninhada — não é o teste fullscreen." >&2
-    echo >&2
-    echo "Faça assim:" >&2
-    echo "  1) Logout até a tela de login da VM" >&2
-    echo "  2) No Virt-Manager: Send Key → Ctrl+Alt+F3" >&2
-    echo "  3) Login no TTY como ${USER}" >&2
-    echo "  4) dbus-run-session -- ${HOME}/.local/bin/tuxi-labwc-session" >&2
-    echo >&2
-    echo "Ou force aninhado (só debug): TUXI_ALLOW_NESTED=1 $0" >&2
-    exit 1
-  fi
+# Autostart mínimo: painel + terminal (para desenvolver dentro da sessão).
+mkdir -p "${HOME}/.config/labwc"
+AUTOSTART="${HOME}/.config/labwc/autostart"
+if [[ ! -f "${AUTOSTART}" ]]; then
+  cat > "${AUTOSTART}" <<'EOF'
+#!/usr/bin/env bash
+# Gerado pelo TUXI — edite à vontade.
+EOF
+  chmod +x "${AUTOSTART}"
 fi
 
-(
-  sleep 0.4
-  exec "${PANEL}"
-) &
+# Garante linhas do painel/terminal no autostart (idempotente).
+ensure_line() {
+  local line="$1"
+  grep -Fqx "${line}" "${AUTOSTART}" 2>/dev/null || echo "${line}" >> "${AUTOSTART}"
+}
+
+if [[ -n "${PANEL}" ]]; then
+  ensure_line "${PANEL} &"
+fi
+
+# Terminal se existir (desenvolvimento dentro do TUXI).
+for term in xfce4-terminal foot kitty alacritty gnome-terminal; do
+  if command -v "${term}" >/dev/null 2>&1; then
+    ensure_line "${term} &"
+    break
+  fi
+done
 
 exec labwc

@@ -1,31 +1,44 @@
 #!/usr/bin/env bash
-# Instala a sessão de desenvolvimento TUXI+labwc.
+# Instala a sessão TUXI+labwc para aparecer no LightDM / GDM / SDDM.
+#
+# CRÍTICO: o script e o TryExec vão para /usr/local (não ~/.local).
+# O greeter do LightDM corre como user "lightdm" e NÃO consegue
+# executar TryExec em /home/<user>/.local (home costuma ser 700) —
+# aí a sessão some da lista e só fica "Sessão do Xfce".
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-REPO_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
 
-if [[ "${EUID}" -eq 0 && -n "${SUDO_USER:-}" && "${SUDO_USER}" != "root" ]]; then
-  TARGET_HOME="$(getent passwd "${SUDO_USER}" | cut -d: -f6)"
-  TARGET_USER="${SUDO_USER}"
-else
-  TARGET_HOME="${HOME}"
-  TARGET_USER="$(id -un)"
+if [[ "${EUID}" -ne 0 ]]; then
+  echo "Este instalador precisa de root para o LightDM enxergar a sessão."
+  echo "Rode:  sudo $0"
+  exit 1
 fi
 
-BIN_DIR="${TARGET_HOME}/.local/bin"
-SESSION_BIN="${BIN_DIR}/tuxi-labwc-session"
+if [[ -n "${SUDO_USER:-}" && "${SUDO_USER}" != "root" ]]; then
+  TARGET_USER="${SUDO_USER}"
+  TARGET_HOME="$(getent passwd "${SUDO_USER}" | cut -d: -f6)"
+else
+  echo "Use: sudo -u <seuuser> não; use: sudo $0  (com SUDO_USER do teu login)"
+  echo "Ex.: faça login como brayan e: sudo ./scripts/install-dev-session.sh"
+  TARGET_USER="brayan"
+  TARGET_HOME="/home/brayan"
+  if [[ ! -d "${TARGET_HOME}" ]]; then
+    echo "Ajuste TARGET no script — home não encontrado."
+    exit 1
+  fi
+fi
 
-mkdir -p "${BIN_DIR}" \
-  "${TARGET_HOME}/.local/share/wayland-sessions" \
-  "${TARGET_HOME}/.local/share/xsessions"
+SESSION_BIN="/usr/local/bin/tuxi-labwc-session"
+
+install -d /usr/local/bin \
+  /usr/share/wayland-sessions \
+  /usr/share/xsessions \
+  /usr/local/share/wayland-sessions \
+  /usr/local/share/xsessions
 
 install -m 755 "${SCRIPT_DIR}/tuxi-labwc-session" "${SESSION_BIN}"
-if [[ "${EUID}" -eq 0 && -n "${TARGET_USER}" ]]; then
-  chown "${TARGET_USER}:${TARGET_USER}" "${SESSION_BIN}" || true
-fi
 
-# Nome sem parênteses — alguns greeters LightDM engasgam com isso.
 desktop_body() {
   cat <<EOF
 [Desktop Entry]
@@ -33,45 +46,49 @@ Version=1.0
 Type=Application
 Name=TUXI labwc
 Comment=labwc + painel TUXI (desenvolvimento)
-Exec=dbus-run-session -- ${SESSION_BIN}
+Exec=${SESSION_BIN}
 TryExec=${SESSION_BIN}
 DesktopNames=labwc;TUXI;
 Keywords=tuxi;labwc;wayland;
 EOF
 }
 
-write_desktop() {
-  local dest="$1"
-  desktop_body > "${dest}"
-  chmod 644 "${dest}"
-  if [[ "${EUID}" -eq 0 && -n "${TARGET_USER}" && "${dest}" == "${TARGET_HOME}"/* ]]; then
-    chown "${TARGET_USER}:${TARGET_USER}" "${dest}" || true
-  fi
-}
+for dir in \
+  /usr/share/wayland-sessions \
+  /usr/share/xsessions \
+  /usr/local/share/wayland-sessions \
+  /usr/local/share/xsessions
+do
+  desktop_body > "${dir}/tuxi-labwc.desktop"
+  chmod 644 "${dir}/tuxi-labwc.desktop"
+done
 
-write_desktop "${TARGET_HOME}/.local/share/wayland-sessions/tuxi-labwc.desktop"
-write_desktop "${TARGET_HOME}/.local/share/xsessions/tuxi-labwc.desktop"
+# Cópia de conveniência no home (documentação / PATH do user).
+install -d "${TARGET_HOME}/.local/bin"
+install -m 755 "${SCRIPT_DIR}/tuxi-labwc-session" "${TARGET_HOME}/.local/bin/tuxi-labwc-session"
+chown "${TARGET_USER}:${TARGET_USER}" "${TARGET_HOME}/.local/bin/tuxi-labwc-session"
 
-if [[ "${EUID}" -eq 0 ]]; then
-  install -d /usr/share/wayland-sessions /usr/share/xsessions
-  write_desktop /usr/share/wayland-sessions/tuxi-labwc.desktop
-  write_desktop /usr/share/xsessions/tuxi-labwc.desktop
-  echo "Instalado em /usr/share/{wayland-sessions,xsessions}/"
-  echo "Exec → ${SESSION_BIN}"
-  echo
-  echo "Reinicie o LightDM para recarregar a lista de sessões:"
-  echo "  sudo systemctl restart lightdm"
-else
-  echo "Depois rode: sudo \"${REPO_ROOT}/scripts/install-dev-session.sh\""
+# Preferência de sessão no AccountsService (se existir) — próximo login.
+if command -v dbus-send >/dev/null 2>&1; then
+  uid="$(id -u "${TARGET_USER}")"
+  dbus-send --system --type=method_call --print-reply \
+    --dest=org.freedesktop.Accounts \
+    "/org/freedesktop/Accounts/User${uid}" \
+    org.freedesktop.Accounts.User.SetXSession string:tuxi-labwc \
+    >/dev/null 2>&1 || true
 fi
 
+echo "OK — sessão instalada para LightDM."
+echo "  Exec/TryExec: ${SESSION_BIN}"
+echo "  .desktop:     /usr/share/xsessions/tuxi-labwc.desktop"
+echo "  .desktop:     /usr/share/wayland-sessions/tuxi-labwc.desktop"
 echo
-echo "Alvo: ${TARGET_USER} (${TARGET_HOME})"
-ls -la "${SESSION_BIN}"
-ls -la "${TARGET_HOME}/.local/share/xsessions/tuxi-labwc.desktop"
+echo "Confira:"
+echo "  ls -la ${SESSION_BIN}"
+echo "  grep -E 'Exec|TryExec|Name' /usr/share/xsessions/tuxi-labwc.desktop"
 echo
-echo "=== Como ver em TELA CHEIA (não janela) ==="
-echo "Virt-Manager → Send Key → Ctrl+Alt+F3"
-echo "login no TTY →:"
-echo "  dbus-run-session -- ${SESSION_BIN}"
-echo "Voltar ao login gráfico: Ctrl+Alt+F1 (ou F2)"
+echo "Recarregue o greeter (vai cair na tela de login):"
+echo "  sudo systemctl restart lightdm"
+echo
+echo "Na tela de login escolha \"TUXI labwc\" (uma vez). O LightDM lembra."
+echo "Painel precisa existir:  sudo -u ${TARGET_USER} bash -lc 'cd ~/tuxi && cargo build -p tuxi-panel'"

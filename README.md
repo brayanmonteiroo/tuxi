@@ -46,30 +46,21 @@ cargo run -p tuxi-panel
 **KDE Plasma Wayland**, Sway, labwc, Hyprland, etc. **Não** funciona no
 GNOME Shell Wayland (protocolo não suportado).
 
-### Sessão de teste na VM (labwc) — tela cheia
-
-Rodar o script **dentro do XFCE** abre só uma janela `wlroots - X11`
-(labwc aninhado). Isso é igual testar no host. Para fullscreen de verdade:
+### Sessão no login (LightDM / XFCE)
 
 ```bash
 sudo dnf install -y labwc
 cd ~/tuxi && git pull && cargo build -p tuxi-panel
-./scripts/install-dev-session.sh
 sudo ./scripts/install-dev-session.sh
-sudo systemctl restart lightdm   # recarrega lista de sessões
+sudo systemctl restart lightdm
 ```
 
-**Caminho confiável (TTY):**
+Na tela de login escolhe **TUXI labwc** (uma vez). O greeter passa a lembrar —
+**Reiniciar** no menu TUXI volta para o TUXI, não para o XFCE.
 
-1. Logout até a tela de login (ou reinicie o lightdm).
-2. No Virt-Manager: menu **Send Key → Ctrl+Alt+F3** (não use o teclado
-   direto — o host pode capturar o atalho).
-3. Login no TTY como o teu usuário.
-4. `dbus-run-session -- ~/.local/bin/tuxi-labwc-session`
-5. Virt-Manager em fullscreen. Voltar ao login gráfico: Send Key → Ctrl+Alt+F1.
+Detalhes e como outros DEs desenvolvem: [docs/DEV_WORKFLOW.md](docs/DEV_WORKFLOW.md).
 
-Se o LightDM listar **TUXI labwc**, podes escolher no login — mas o TTY
-acima é o método que sempre dá compositor nativo (DRM), não janela.
+Nested (janela `wlroots - X11`) = só debug rápido; não uses como fluxo principal.
 
 ### Qualidade
 
