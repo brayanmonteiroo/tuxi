@@ -425,52 +425,49 @@ fn configure_panel_layer_shell(window: &gtk::Window) {
     apply_panel_full_width(window);
 }
 
-/// Layer-shell + largura explícita do monitor (nunca surface.width — era a barra curta).
+/// Layer-shell: âncoras L+R fazem o compositor esticar à largura do output.
+/// Não pedir width via size_request — com âncoras opostas a largura é do compositor.
 fn apply_panel_full_width(window: &gtk::Window) {
-    if gtk4_layer_shell::is_supported() {
-        if !window.is_layer_window() {
-            window.init_layer_shell();
-        }
-        window.set_layer(Layer::Top);
-        window.set_anchor(Edge::Left, true);
-        window.set_anchor(Edge::Right, true);
-        window.set_anchor(Edge::Bottom, true);
-        window.set_anchor(Edge::Top, false);
-        window.set_margin(Edge::Left, 0);
-        window.set_margin(Edge::Right, 0);
-        window.set_margin(Edge::Bottom, 0);
-        window.set_exclusive_zone(PANEL_HEIGHT);
-        window.set_namespace(Some("tuxi-panel"));
-    } else {
-        warn!("gtk4-layer-shell não suportado; usando largura do monitor");
+    if !gtk4_layer_shell::is_supported() {
+        warn!("gtk4-layer-shell não suportado neste compositor");
+        window.set_default_size(1280, PANEL_HEIGHT);
+        return;
     }
+
+    if !window.is_layer_window() {
+        window.init_layer_shell();
+    }
+    window.set_layer(Layer::Top);
+    window.set_anchor(Edge::Left, true);
+    window.set_anchor(Edge::Right, true);
+    window.set_anchor(Edge::Bottom, true);
+    window.set_anchor(Edge::Top, false);
+    window.set_margin(Edge::Left, 0);
+    window.set_margin(Edge::Right, 0);
+    window.set_margin(Edge::Bottom, 0);
+    window.set_exclusive_zone(PANEL_HEIGHT);
+    window.set_namespace(Some("tuxi-panel"));
 
     let display = WidgetExt::display(window);
-    let monitor = window
+    if let Some(monitor) = window
         .surface()
         .and_then(|s| display.monitor_at_surface(&s))
-        .or_else(|| display.monitors().item(0).and_downcast::<gdk::Monitor>());
-
-    let width = monitor
-        .as_ref()
-        .map(|m| m.geometry().width())
-        .filter(|w| *w > 0)
-        .unwrap_or(1280);
-
-    if let Some(m) = monitor.as_ref() {
-        if window.is_layer_window() {
-            window.set_monitor(Some(m));
-        }
+        .or_else(|| display.monitors().item(0).and_downcast::<gdk::Monitor>())
+    {
+        window.set_monitor(Some(&monitor));
+        info!(
+            width = monitor.geometry().width(),
+            is_layer = true,
+            "painel layer-shell L+R+Bottom (stretch pelo compositor)"
+        );
+    } else {
+        info!(is_layer = true, "painel layer-shell L+R+Bottom (monitor ainda n/d)");
     }
 
-    window.set_default_size(width, PANEL_HEIGHT);
-    window.set_size_request(width, PANEL_HEIGHT);
+    // Altura fixa; largura -1 = compositor decide (stretch L+R).
+    window.set_default_size(-1, PANEL_HEIGHT);
+    window.set_size_request(-1, PANEL_HEIGHT);
     window.queue_resize();
-    info!(
-        width,
-        is_layer = window.is_layer_window(),
-        "painel largura total aplicada"
-    );
 }
 
 fn configure_menu_layer_shell(window: &gtk::Window) {

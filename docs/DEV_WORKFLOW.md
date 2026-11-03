@@ -66,8 +66,18 @@ sudo dnf install -y labwc   # uma vez
 ./scripts/tuxi-nested.sh
 ```
 
-Abre uma janela `wlroots` com a barra TUXI. Ideal para CSS, menu, botões.
+Abre uma janela `labwc` com a barra TUXI. Ideal para CSS, menu, botões.
 Fecha a janela = fim do teste.
+
+Para iterar **sem fechar** o nested:
+
+```bash
+./scripts/tuxi-reload-panel.sh
+```
+
+O nested grava `$XDG_RUNTIME_DIR/tuxi-nested-display`. No KDE o host
+costuma ser `wayland-1` e o nested `wayland-0` — o reload **não** pode
+assumir que nested ≠ `wayland-0`.
 
 Também podes iterar **só o painel** no Plasma (layer-shell), sem labwc:
 

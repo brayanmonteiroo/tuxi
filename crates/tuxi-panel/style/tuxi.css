@@ -13,8 +13,8 @@
   background-color: @tuxi_bg;
   color: @tuxi_fg;
   border-top: 1px solid @tuxi_border;
+  border-radius: 0;
   min-height: 40px;
-  min-width: 100%;
   padding: 0 4px;
 }
 
