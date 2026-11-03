@@ -1,9 +1,47 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!--
   Config labwc da sessão TUXI (fonte: packaging/labwc).
-  Baseado no exemplo mínimo oficial; opções completas em rc.xml.all do labwc.
+  Tema SSD: packaging/themes/TUXI/labwc (nome "TUXI").
 -->
 <labwc_config>
+  <core>
+    <!-- Preferir decoração do compositor (identidade TUXI). -->
+    <decoration>server</decoration>
+    <gap>6</gap>
+  </core>
+
+  <theme>
+    <name>TUXI</name>
+    <titlebar>
+      <!-- ícone da app | título … | minimizar, maximizar, fechar -->
+      <layout>icon:iconify,max,close</layout>
+      <showTitle>yes</showTitle>
+    </titlebar>
+    <cornerRadius>10</cornerRadius>
+    <keepBorder>yes</keepBorder>
+    <maximizedDecoration>titlebar</maximizedDecoration>
+    <dropShadows>yes</dropShadows>
+    <font place="ActiveWindow">
+      <name>sans</name>
+      <size>11</size>
+      <weight>bold</weight>
+    </font>
+    <font place="InactiveWindow">
+      <name>sans</name>
+      <size>11</size>
+      <weight>normal</weight>
+    </font>
+    <font place="MenuItem">
+      <name>sans</name>
+      <size>11</size>
+    </font>
+    <font place="OnScreenDisplay">
+      <name>sans</name>
+      <size>12</size>
+      <weight>bold</weight>
+    </font>
+  </theme>
+
   <keyboard>
     <default />
     <keybind key="A-F4">

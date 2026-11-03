@@ -35,8 +35,13 @@ REPO_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
 PACKAGING_LABWC="${REPO_ROOT}/packaging/labwc"
 USER_LABWC="${TARGET_HOME}/.config/tuxi/labwc"
 
+THEME_SRC="${REPO_ROOT}/packaging/themes/TUXI/labwc"
+SHARE_THEME="/usr/local/share/themes/TUXI/labwc"
+USER_THEME="${TARGET_HOME}/.local/share/themes/TUXI/labwc"
+
 install -d /usr/local/bin \
   /usr/local/share/tuxi/labwc \
+  /usr/local/share/themes/TUXI/labwc \
   /usr/share/wayland-sessions \
   /usr/share/xsessions \
   /usr/local/share/wayland-sessions \
@@ -54,15 +59,25 @@ install -m 644 "${PACKAGING_LABWC}/menu.xml" "${SHARE_LABWC}/menu.xml"
 install -m 644 "${PACKAGING_LABWC}/environment" "${SHARE_LABWC}/environment"
 install -m 755 "${PACKAGING_LABWC}/autostart" "${SHARE_LABWC}/autostart"
 
+# Tema SSD (barra de título) — labwc procura em share/themes/<nome>/labwc.
+if [[ ! -d "${THEME_SRC}" ]]; then
+  echo "Falta ${THEME_SRC}" >&2
+  exit 1
+fi
+install -d "${SHARE_THEME}"
+install -m 644 "${THEME_SRC}"/* "${SHARE_THEME}/"
+
 # Cópia no home do developer (sessão usa ~/.config/tuxi/labwc).
-install -d "${USER_LABWC}"
+install -d "${USER_LABWC}" "${USER_THEME}"
 install -m 644 "${PACKAGING_LABWC}/rc.xml" "${USER_LABWC}/rc.xml"
 install -m 644 "${PACKAGING_LABWC}/menu.xml" "${USER_LABWC}/menu.xml"
 install -m 644 "${PACKAGING_LABWC}/environment" "${USER_LABWC}/environment"
+install -m 644 "${THEME_SRC}"/* "${USER_THEME}/"
 if [[ ! -f "${USER_LABWC}/autostart" ]]; then
   install -m 755 "${PACKAGING_LABWC}/autostart" "${USER_LABWC}/autostart"
 fi
-chown -R "${TARGET_USER}:${TARGET_USER}" "${TARGET_HOME}/.config/tuxi"
+chown -R "${TARGET_USER}:${TARGET_USER}" "${TARGET_HOME}/.config/tuxi" \
+  "${TARGET_HOME}/.local/share/themes/TUXI"
 
 desktop_body() {
   cat <<EOF
@@ -107,6 +122,7 @@ echo "OK — sessão instalada para LightDM."
 echo "  Exec/TryExec: ${SESSION_BIN}"
 echo "  labwc share:  ${SHARE_LABWC}"
 echo "  labwc user:   ${USER_LABWC}"
+echo "  tema SSD:     ${SHARE_THEME}"
 echo "  .desktop:     /usr/share/xsessions/tuxi-labwc.desktop"
 echo "  .desktop:     /usr/share/wayland-sessions/tuxi-labwc.desktop"
 echo

@@ -1,0 +1,71 @@
+# Tema SSD TUXI — decoração server-side do labwc.
+# Tokens alinhados a crates/tuxi-panel/style/tuxi.css
+
+border.width: 1
+
+window.titlebar.padding.width: 8
+window.titlebar.padding.height: 4
+
+window.active.border.color: #3d8bfd
+window.inactive.border.color: #343b46
+
+window.active.indicator.toggled-keybind.color: #3d8bfd
+
+# Titlebar
+window.active.title.bg: Solid
+window.active.title.bg.color: #1e232b
+window.inactive.title.bg: Solid
+window.inactive.title.bg.color: #16191e
+
+window.active.label.text.color: #e8eaed
+window.inactive.label.text.color: #9aa0a6
+window.label.text.justify: Left
+
+# Botões — tamanho estável, hover em pílula
+window.button.width: 28
+window.button.height: 28
+window.button.spacing: 2
+window.button.hover.bg.color: #e8eaed18
+window.button.hover.bg.corner-radius: 8
+
+window.active.button.unpressed.image.color: #c5cad1
+window.inactive.button.unpressed.image.color: #6b7280
+
+# Fechar em accent de perigo (identidade TUXI)
+window.active.button.close.unpressed.image.color: #e35d6a
+window.inactive.button.close.unpressed.image.color: #8a4a52
+
+window.active.button.iconify.unpressed.image.color: #9aa0a6
+window.inactive.button.iconify.unpressed.image.color: #6b7280
+window.active.button.max.unpressed.image.color: #9aa0a6
+window.inactive.button.max.unpressed.image.color: #6b7280
+
+# Sombras suaves (só janela ativa um pouco mais presente)
+window.active.shadow.size: 48
+window.inactive.shadow.size: 28
+window.active.shadow.color: #00000055
+window.inactive.shadow.color: #00000030
+
+# Menu do labwc (botão direito na titlebar)
+menu.border.width: 1
+menu.border.color: #343b46
+menu.items.bg.color: #1e232b
+menu.items.text.color: #e8eaed
+menu.items.active.bg.color: #3d8bfd
+menu.items.active.text.color: #ffffff
+menu.items.padding.x: 10
+menu.items.padding.y: 6
+menu.separator.color: #343b46
+menu.title.bg.color: #252b34
+menu.title.text.color: #e8eaed
+menu.title.text.justify: Left
+menu.width.min: 140
+menu.width.max: 280
+
+# OSD (Alt+Tab, etc.)
+osd.bg.color: #1e232b
+osd.border.color: #343b46
+osd.border.width: 1
+osd.label.text.color: #e8eaed
+osd.window-switcher.style-classic.item.active.bg.color: #252b34
+osd.window-switcher.style-classic.item.active.border.color: #3d8bfd

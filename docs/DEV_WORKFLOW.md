@@ -71,6 +71,11 @@ O nested usa `dbus-run-session` (D-Bus próprio) e grava
 
 **Taskbar:** foreign-toplevel (clique foca; meio fecha).
 
+**Decoração de janelas (SSD):** tema `packaging/themes/TUXI/labwc`
+(selecionado em `packaging/labwc/rc.xml` como `<name>TUXI</name>`).
+Mudança de themerc/botões exige **reiniciar** o nested (`labwc` relê o tema
+na subida; `tuxi-reload-panel.sh` não troca a titlebar).
+
 ### Isolar apps do host — nested vs VM
 
 | Nível | O que isola | Limite |

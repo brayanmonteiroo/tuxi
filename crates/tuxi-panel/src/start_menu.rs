@@ -207,6 +207,7 @@ fn launch_nested_spawn(app: &DesktopApp) -> Result<()> {
         // Evita Qt/Electron puxarem KWallet / tema KDE do host.
         .env("PASSWORD_STORE", "basic")
         .env("CHROME_PASSWORD_STORE", "basic")
+        .env("GTK_CSD", "0")
         .env_remove("DISPLAY")
         .env_remove("KDE_FULL_SESSION")
         .env_remove("KDE_SESSION_VERSION")

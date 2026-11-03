@@ -78,6 +78,13 @@ do
   stub_dbus_service "${svc}"
 done
 
+# Tema SSD TUXI (barra de título / botões) — labwc procura em $XDG_DATA_DIRS/themes.
+THEME_SRC="${ROOT}/packaging/themes/TUXI/labwc"
+if [[ -d "${THEME_SRC}" ]]; then
+  mkdir -p "${NESTED_XDG_DATA}/themes/TUXI/labwc"
+  cp -a "${THEME_SRC}/." "${NESTED_XDG_DATA}/themes/TUXI/labwc/"
+fi
+
 HOST_XDG_DATA_DIRS="${XDG_DATA_DIRS:-/usr/local/share:/usr/share}"
 export XDG_DATA_DIRS="${NESTED_XDG_DATA}:${HOST_XDG_DATA_DIRS}"
 # labwc environment file (lido pelo compositor / filhos).
@@ -88,6 +95,7 @@ XDG_SESSION_DESKTOP=tuxi
 XDG_DATA_DIRS=${XDG_DATA_DIRS}
 PASSWORD_STORE=basic
 CHROME_PASSWORD_STORE=basic
+GTK_CSD=0
 EOF
 
 cat > "${CFG}/autostart" <<'EOF'
