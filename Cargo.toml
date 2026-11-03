@@ -1,0 +1,16 @@
+[workspace]
+resolver = "2"
+members = ["crates/tuxi-panel"]
+
+[workspace.package]
+edition = "2021"
+license = "GPL-3.0-or-later"
+repository = "https://github.com/brayan/tuxi"
+
+[workspace.dependencies]
+anyhow = "1"
+chrono = { version = "0.4", default-features = false, features = ["clock", "std"] }
+gtk4-layer-shell = "0.8"
+relm4 = { version = "0.11", features = ["libadwaita"] }
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }

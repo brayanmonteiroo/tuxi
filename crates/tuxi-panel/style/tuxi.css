@@ -1,0 +1,111 @@
+/* TUXI Design System — tokens iniciais (identidade própria sobre Adwaita). */
+
+@define-color tuxi_bg #1c1f24;
+@define-color tuxi_bg_elevated #252a32;
+@define-color tuxi_fg #e8eaed;
+@define-color tuxi_fg_muted #9aa0a6;
+@define-color tuxi_accent #3d8bfd;
+@define-color tuxi_accent_fg #ffffff;
+@define-color tuxi_border #3a404a;
+@define-color tuxi_danger #e35d6a;
+
+.tuxi-panel {
+  background-color: @tuxi_bg;
+  color: @tuxi_fg;
+  border-top: 1px solid @tuxi_border;
+  min-height: 40px;
+  padding: 0 4px;
+}
+
+.tuxi-panel button {
+  background: transparent;
+  border: none;
+  border-radius: 6px;
+  color: @tuxi_fg;
+  padding: 4px 12px;
+  box-shadow: none;
+}
+
+.tuxi-panel button:hover {
+  background-color: alpha(@tuxi_fg, 0.08);
+}
+
+.tuxi-panel button:checked,
+.tuxi-panel button.suggested-action {
+  background-color: @tuxi_accent;
+  color: @tuxi_accent_fg;
+}
+
+.tuxi-panel-clock {
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: @tuxi_fg;
+  padding: 0 10px;
+  min-width: 3.5em;
+}
+
+.tuxi-panel-status {
+  color: @tuxi_fg_muted;
+  padding: 0 6px;
+}
+
+.tuxi-task-area {
+  padding: 0 12px;
+}
+
+.tuxi-task-placeholder {
+  color: @tuxi_fg_muted;
+  font-size: 0.9em;
+  font-style: italic;
+  opacity: 0.85;
+}
+
+.tuxi-start-menu {
+  background-color: @tuxi_bg_elevated;
+  color: @tuxi_fg;
+  border: 1px solid @tuxi_border;
+  border-radius: 12px;
+  padding: 10px;
+  margin-bottom: 4px;
+}
+
+.tuxi-start-menu entry {
+  margin-bottom: 4px;
+}
+
+.tuxi-start-menu list {
+  background: transparent;
+}
+
+.tuxi-start-menu row {
+  border-radius: 8px;
+  padding: 6px 10px;
+  margin: 1px 0;
+}
+
+.tuxi-start-menu row:hover,
+.tuxi-start-menu row:selected {
+  background-color: alpha(@tuxi_accent, 0.22);
+}
+
+.tuxi-category-pane {
+  border-radius: 8px;
+  background-color: alpha(@tuxi_bg, 0.55);
+}
+
+.tuxi-apps-pane {
+  border-radius: 8px;
+}
+
+.tuxi-category-row {
+  font-weight: 600;
+}
+
+.tuxi-category-label {
+  font-weight: 700;
+  font-size: 0.8em;
+  color: @tuxi_fg_muted;
+  padding: 6px 8px 4px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
