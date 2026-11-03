@@ -44,25 +44,44 @@ O LightDM esconde entradas cujo `TryExec` falha. Com path em `$HOME`, o user
 
 ## Fluxo recomendado
 
+### Qual script correr?
+
+| Situação | Comando |
+|----------|---------|
+| Começar a trabalhar | `./scripts/tuxi-nested.sh` **uma vez** (deixa a janela aberta) |
+| Mudaste código/CSS | `./scripts/tuxi-reload-panel.sh` (rebuild + só o painel) |
+| Fechaste a janela labwc | de novo `./scripts/tuxi-nested.sh` |
+
+Não precisas dos dois em loop. Nested = compositor; reload = painel.
+
 ### A) Nested (mesmo compositor do produto)
 
 ```bash
 cargo build -p tuxi-panel
 sudo dnf install -y labwc   # uma vez
-./scripts/tuxi-nested.sh
-```
-
-Iterar sem fechar o nested:
-
-```bash
+./scripts/tuxi-nested.sh    # terminal A — fica aberto
+# terminal B, depois de editar:
 ./scripts/tuxi-reload-panel.sh
 ```
 
-O nested grava `$XDG_RUNTIME_DIR/tuxi-nested-display`. No KDE o host costuma
-ser `wayland-1` e o nested `wayland-0` — o reload usa esse ficheiro (não assume
-que nested ≠ `wayland-0`).
+O nested usa `dbus-run-session` (D-Bus próprio) e grava
+`$XDG_RUNTIME_DIR/tuxi-nested-env` para o reload herdar o mesmo bus/Wayland.
 
-Só o painel no Plasma (compat): `cargo run -p tuxi-panel`.
+**Power:** Reiniciar/Desligar bloqueados; Sair = `labwc --exit`.
+
+**Taskbar:** foreign-toplevel (clique foca; meio fecha).
+
+### Isolar apps do host — nested vs VM
+
+| Nível | O que isola | Limite |
+|-------|-------------|--------|
+| Nested + dbus-run-session (atual) | Wayland + D-Bus de sessão | Mesmos binários/filesystem do host; app já aberta no Plasma pode “single-instance” |
+| Sessão TUXI no login | Sessão gráfica completa | Continua a ver apps instaladas no sistema |
+| **VM** (recomendado p/ “DE só dele”) | Kernel, disco, apps, D-Bus | Precisas instalar o que quiseres na VM |
+
+Nested **não** é uma sandbox de apps: reutiliza o que está no Fedora.
+Para um desktop “só TUXI” com apps próprias, usa **VM** (ou depois packaging
+numa distro). Nested serve para iterar UI/painel depressa no host.
 
 ### B) Sessão no login
 
@@ -77,7 +96,13 @@ Escolhe **TUXI labwc** uma vez no greeter. O instalador sincroniza
 
 ## Testes
 
-**Fase 1 (agora):** lógica pura
+**Fase 1 (agora):** lógica pura, **dentro dos próprios `.rs`** (não há pasta
+`tests/` ainda). Procura por `#[cfg(test)] mod tests` em:
+
+- [`crates/tuxi-panel/src/start_menu.rs`](../crates/tuxi-panel/src/start_menu.rs)
+  — categorias, filtro de pesquisa
+- [`crates/tuxi-panel/src/session_power.rs`](../crates/tuxi-panel/src/session_power.rs)
+  — labels/ícones de energia, guardrail nested
 
 ```bash
 cargo test -p tuxi-panel

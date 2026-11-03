@@ -1,12 +1,13 @@
 /* TUXI Design System — tokens iniciais (identidade própria sobre Adwaita). */
 
-@define-color tuxi_bg #1c1f24;
-@define-color tuxi_bg_elevated #252a32;
+@define-color tuxi_bg #16191e;
+@define-color tuxi_bg_elevated #1e232b;
+@define-color tuxi_bg_row #252b34;
 @define-color tuxi_fg #e8eaed;
 @define-color tuxi_fg_muted #9aa0a6;
 @define-color tuxi_accent #3d8bfd;
 @define-color tuxi_accent_fg #ffffff;
-@define-color tuxi_border #3a404a;
+@define-color tuxi_border #343b46;
 @define-color tuxi_danger #e35d6a;
 
 .tuxi-panel {
@@ -14,16 +15,17 @@
   color: @tuxi_fg;
   border-top: 1px solid @tuxi_border;
   border-radius: 0;
-  min-height: 40px;
-  padding: 0 4px;
+  min-height: 48px;
+  padding: 0 6px;
 }
 
 .tuxi-panel button {
   background: transparent;
   border: none;
-  border-radius: 6px;
+  border-radius: 8px;
   color: @tuxi_fg;
   padding: 4px 12px;
+  min-height: 36px;
   box-shadow: none;
 }
 
@@ -51,7 +53,8 @@
 }
 
 .tuxi-task-area {
-  padding: 0 12px;
+  padding: 0 4px;
+  min-width: 0;
 }
 
 .tuxi-task-placeholder {
@@ -59,6 +62,28 @@
   font-size: 0.9em;
   font-style: italic;
   opacity: 0.85;
+}
+
+.tuxi-task-button {
+  background-color: alpha(@tuxi_fg, 0.06);
+  border: 1px solid transparent;
+  border-radius: 8px;
+  color: @tuxi_fg;
+  padding: 4px 10px;
+  min-height: 36px;
+}
+
+.tuxi-task-button image {
+  -gtk-icon-size: 28px;
+}
+
+.tuxi-task-button:hover {
+  background-color: alpha(@tuxi_fg, 0.1);
+}
+
+.tuxi-task-button-active {
+  background-color: alpha(@tuxi_accent, 0.28);
+  border-color: alpha(@tuxi_accent, 0.5);
 }
 
 .tuxi-start-menu {
@@ -70,8 +95,19 @@
   margin-bottom: 4px;
 }
 
-.tuxi-start-menu entry {
-  margin-bottom: 4px;
+.tuxi-search-entry {
+  margin-bottom: 6px;
+  background-color: @tuxi_bg_row;
+  border: 1px solid @tuxi_border;
+  border-radius: 8px;
+  color: @tuxi_fg;
+  caret-color: @tuxi_accent;
+  padding: 4px 8px;
+}
+
+.tuxi-search-entry:focus {
+  border-color: alpha(@tuxi_accent, 0.7);
+  box-shadow: 0 0 0 1px alpha(@tuxi_accent, 0.35);
 }
 
 .tuxi-start-menu list {
@@ -82,24 +118,41 @@
   border-radius: 8px;
   padding: 6px 10px;
   margin: 1px 0;
+  color: @tuxi_fg;
 }
 
-.tuxi-start-menu row:hover,
+.tuxi-start-menu row:hover {
+  background-color: alpha(@tuxi_fg, 0.06);
+}
+
 .tuxi-start-menu row:selected {
-  background-color: alpha(@tuxi_accent, 0.22);
+  background-color: alpha(@tuxi_accent, 0.28);
+  color: @tuxi_fg;
 }
 
 .tuxi-category-pane {
   border-radius: 8px;
-  background-color: alpha(@tuxi_bg, 0.55);
+  background-color: @tuxi_bg;
+  border: 1px solid alpha(@tuxi_border, 0.8);
 }
 
 .tuxi-apps-pane {
   border-radius: 8px;
+  background-color: transparent;
 }
 
 .tuxi-category-row {
   font-weight: 600;
+}
+
+.tuxi-category-icon {
+  color: @tuxi_fg_muted;
+  opacity: 0.95;
+}
+
+.tuxi-start-menu row:selected .tuxi-category-icon {
+  color: @tuxi_accent;
+  opacity: 1;
 }
 
 .tuxi-category-label {
@@ -116,22 +169,41 @@
 }
 
 .tuxi-power-button {
-  background-color: alpha(@tuxi_fg, 0.06);
+  background-color: @tuxi_bg_row;
   border: 1px solid @tuxi_border;
   border-radius: 8px;
   color: @tuxi_fg;
   padding: 6px 12px;
-  min-width: 72px;
+  min-width: 88px;
+}
+
+.tuxi-power-button image {
+  margin-right: 0;
 }
 
 .tuxi-power-button:hover {
-  background-color: alpha(@tuxi_accent, 0.25);
+  background-color: alpha(@tuxi_accent, 0.22);
+  border-color: alpha(@tuxi_accent, 0.45);
 }
 
 .tuxi-power-button.destructive-action {
-  border-color: alpha(@tuxi_danger, 0.55);
+  border-color: alpha(@tuxi_danger, 0.45);
+  color: @tuxi_fg;
 }
 
 .tuxi-power-button.destructive-action:hover {
-  background-color: alpha(@tuxi_danger, 0.28);
+  background-color: alpha(@tuxi_danger, 0.2);
+  border-color: alpha(@tuxi_danger, 0.7);
+}
+
+.tuxi-power-button-disabled-hint {
+  opacity: 0.72;
+}
+
+.tuxi-app-row {
+  border-radius: 8px;
+}
+
+.tuxi-app-row image {
+  -gtk-icon-style: regular;
 }

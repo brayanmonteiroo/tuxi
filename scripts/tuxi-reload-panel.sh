@@ -1,11 +1,8 @@
 #!/usr/bin/env bash
 # Recompila e relança só o painel no labwc nested (sem fechar a janela).
 #
-#   ./scripts/tuxi-nested.sh          # uma vez
+#   ./scripts/tuxi-nested.sh          # UMA VEZ (deixa aberto)
 #   ./scripts/tuxi-reload-panel.sh    # a cada mudança de código/CSS
-#
-# IMPORTANTE: no host KDE o Plasma costuma ser wayland-1 e o labwc nested
-# fica em wayland-0. Nunca assumir que "não-wayland-0" = nested.
 #
 set -euo pipefail
 
@@ -13,11 +10,11 @@ ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 PANEL="${ROOT}/target/debug/tuxi-panel"
 RUNTIME="${XDG_RUNTIME_DIR:-/run/user/$(id -u)}"
 NESTED_DISPLAY_FILE="${RUNTIME}/tuxi-nested-display"
+NESTED_ENV_FILE="${RUNTIME}/tuxi-nested-env"
 HOST_DISPLAY="${WAYLAND_DISPLAY:-wayland-0}"
 
 cd "${ROOT}"
 
-# Vendor gtk4-layer-shell (prefixo local do repo), se existir.
 if [[ -d "${ROOT}/vendor/prefix/usr/lib64" ]]; then
   export LD_LIBRARY_PATH="${ROOT}/vendor/prefix/usr/lib64${LD_LIBRARY_PATH:+:${LD_LIBRARY_PATH}}"
 fi
@@ -25,13 +22,26 @@ fi
 cargo build -p tuxi-panel
 
 NESTED_DISPLAY=""
-if [[ -n "${TUXI_NESTED_DISPLAY:-}" ]]; then
+NESTED_DBUS=""
+if [[ -f "${NESTED_ENV_FILE}" ]]; then
+  # shellcheck disable=SC1090
+  # Lê WAYLAND_DISPLAY / DBUS do nested (escrito pelo run-panel).
+  while IFS='=' read -r key val; do
+    case "${key}" in
+      WAYLAND_DISPLAY) NESTED_DISPLAY="${val}" ;;
+      DBUS_SESSION_BUS_ADDRESS) NESTED_DBUS="${val}" ;;
+      XDG_DATA_DIRS) export XDG_DATA_DIRS="${val}" ;;
+    esac
+  done < "${NESTED_ENV_FILE}"
+fi
+
+if [[ -z "${NESTED_DISPLAY}" && -n "${TUXI_NESTED_DISPLAY:-}" ]]; then
   NESTED_DISPLAY="${TUXI_NESTED_DISPLAY}"
-elif [[ -f "${NESTED_DISPLAY_FILE}" ]]; then
+fi
+if [[ -z "${NESTED_DISPLAY}" && -f "${NESTED_DISPLAY_FILE}" ]]; then
   NESTED_DISPLAY="$(tr -d '[:space:]' < "${NESTED_DISPLAY_FILE}")"
 fi
 
-# Fallback: qualquer socket wayland que NÃO seja o do host atual.
 if [[ -z "${NESTED_DISPLAY}" ]]; then
   for sock in "${RUNTIME}"/wayland-*; do
     [[ -S "${sock}" ]] || continue
@@ -53,20 +63,27 @@ fi
 
 if [[ "${NESTED_DISPLAY}" == "${HOST_DISPLAY}" ]]; then
   echo "Recusa: nested resolveu para o mesmo display do host (${HOST_DISPLAY})." >&2
-  echo "Abre ./scripts/tuxi-nested.sh e tenta de novo." >&2
   exit 1
 fi
 
 if [[ ! -S "${RUNTIME}/${NESTED_DISPLAY}" ]]; then
-  echo "Socket ${RUNTIME}/${NESTED_DISPLAY} não existe." >&2
-  echo "O nested morreu? Abre ./scripts/tuxi-nested.sh" >&2
+  echo "Socket ${RUNTIME}/${NESTED_DISPLAY} não existe. Nested morreu?" >&2
   exit 1
 fi
 
-# Mata só o painel (labwc continua).
 pkill -x tuxi-panel 2>/dev/null || true
 sleep 0.2
 
-echo "Relançando painel no nested WAYLAND_DISPLAY=${NESTED_DISPLAY} (host=${HOST_DISPLAY})"
-TUXI_ALLOW_NESTED=1 WAYLAND_DISPLAY="${NESTED_DISPLAY}" "${PANEL}" &
+export TUXI_ALLOW_NESTED=1
+export WAYLAND_DISPLAY="${NESTED_DISPLAY}"
+# Crítico: sem isto o painel relançado usa o D-Bus do Plasma e apps abrem no host.
+if [[ -n "${NESTED_DBUS}" ]]; then
+  export DBUS_SESSION_BUS_ADDRESS="${NESTED_DBUS}"
+fi
+
+echo "Relançando painel nested WAYLAND_DISPLAY=${NESTED_DISPLAY}"
+if [[ -n "${NESTED_DBUS}" ]]; then
+  echo "  DBUS_SESSION_BUS_ADDRESS=(dbus do nested)"
+fi
+"${PANEL}" &
 echo "OK — PID $!"

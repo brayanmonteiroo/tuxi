@@ -1,3 +1,4 @@
 # Ambiente da sessão labwc TUXI (labwc lê "environment" no -C).
-# XDG_CURRENT_DESKTOP ajuda portals e apps FreeDesktop.
 XDG_CURRENT_DESKTOP=TUXI:labwc
+# Não herdar “sou uma sessão KDE” (evita KWallet / atalhos globais no nested).
+# labwc não faz unset; o painel limpa estas vars ao lançar apps no nested.

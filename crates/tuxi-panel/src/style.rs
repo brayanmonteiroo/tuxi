@@ -9,7 +9,7 @@ const TUXI_CSS: &str = include_str!("../style/tuxi.css");
 /// Aplica os tokens e regras do Design System TUXI ao display padrão.
 pub(crate) fn load_tuxi_stylesheet() -> Result<()> {
     let provider = CssProvider::new();
-    provider.load_from_data(TUXI_CSS);
+    provider.load_from_string(TUXI_CSS);
 
     let display = gtk::gdk::Display::default().context("nenhum display GDK disponível")?;
 
