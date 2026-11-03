@@ -46,6 +46,18 @@ cargo run -p tuxi-panel
 **KDE Plasma Wayland**, Sway, labwc, Hyprland, etc. **Não** funciona no
 GNOME Shell Wayland (protocolo não suportado).
 
+### Sessão de teste na VM (labwc)
+
+Não cole o conteúdo do `.desktop` no terminal. Na VM:
+
+```bash
+sudo dnf install -y labwc
+cd ~/tuxi && git pull && cargo build -p tuxi-panel
+./scripts/install-dev-session.sh
+```
+
+Logout → escolha **TUXI (labwc)** na tela de login → Virt-Manager em fullscreen.
+
 ### Qualidade
 
 ```bash
