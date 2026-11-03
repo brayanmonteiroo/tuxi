@@ -55,13 +55,15 @@ impl SimpleComponent for PanelModel {
         gtk::Window {
             set_title: Some("TUXI Panel"),
             set_decorated: false,
-            set_resizable: false,
+            // resizable=false impede o stretch do layer-shell no labwc nested
+            set_resizable: true,
             set_default_height: PANEL_HEIGHT,
             add_css_class: "tuxi-panel",
 
             gtk::CenterBox {
                 set_hexpand: true,
                 set_vexpand: true,
+                set_hexpand_set: true,
                 set_margin_start: 6,
                 set_margin_end: 6,
 
@@ -169,7 +171,7 @@ impl SimpleComponent for PanelModel {
         {
             let win = root.clone();
             root.connect_realize(move |w| {
-                ensure_panel_layer_shell(w);
+                apply_panel_full_width(w);
                 info!(
                     is_layer = w.is_layer_window(),
                     anchor_left = w.is_anchor(Edge::Left),
@@ -178,17 +180,18 @@ impl SimpleComponent for PanelModel {
                 );
             });
             root.connect_map(move |w| {
-                ensure_panel_layer_shell(w);
-                // Se por algum motivo não for layer-surface, força largura do output.
-                if !w.is_layer_window() {
-                    force_panel_width_fallback(w);
-                }
+                apply_panel_full_width(w);
                 let win2 = win.clone();
+                let win3 = win.clone();
                 if let Some(surface) = w.surface() {
                     surface.connect_enter_monitor(move |_, _| {
-                        ensure_panel_layer_shell(&win2);
+                        apply_panel_full_width(&win2);
                     });
                 }
+                // Retry: monitor/geometry no nested às vezes só existe após 1 frame.
+                glib::timeout_add_local_once(std::time::Duration::from_millis(50), move || {
+                    apply_panel_full_width(&win3);
+                });
             });
         }
 
@@ -419,67 +422,55 @@ fn build_menu_window(sender: ComponentSender<PanelModel>) -> MenuWidgets {
 }
 
 fn configure_panel_layer_shell(window: &gtk::Window) {
-    ensure_panel_layer_shell(window);
+    apply_panel_full_width(window);
 }
 
-fn ensure_panel_layer_shell(window: &gtk::Window) {
-    if !gtk4_layer_shell::is_supported() {
-        warn!(
-            "gtk4-layer-shell não suportado neste compositor; \
-             o painel abrirá como janela normal (use KDE Plasma Wayland, Sway, labwc, etc.)"
-        );
-        force_panel_width_fallback(window);
-        return;
+/// Layer-shell + largura explícita do monitor (nunca surface.width — era a barra curta).
+fn apply_panel_full_width(window: &gtk::Window) {
+    if gtk4_layer_shell::is_supported() {
+        if !window.is_layer_window() {
+            window.init_layer_shell();
+        }
+        window.set_layer(Layer::Top);
+        window.set_anchor(Edge::Left, true);
+        window.set_anchor(Edge::Right, true);
+        window.set_anchor(Edge::Bottom, true);
+        window.set_anchor(Edge::Top, false);
+        window.set_margin(Edge::Left, 0);
+        window.set_margin(Edge::Right, 0);
+        window.set_margin(Edge::Bottom, 0);
+        window.set_exclusive_zone(PANEL_HEIGHT);
+        window.set_namespace(Some("tuxi-panel"));
+    } else {
+        warn!("gtk4-layer-shell não suportado; usando largura do monitor");
     }
 
-    if !window.is_layer_window() {
-        window.init_layer_shell();
-    }
-
-    window.set_layer(Layer::Top);
-    window.set_anchor(Edge::Left, true);
-    window.set_anchor(Edge::Right, true);
-    window.set_anchor(Edge::Bottom, true);
-    window.set_anchor(Edge::Top, false);
-    window.set_margin(Edge::Left, 0);
-    window.set_margin(Edge::Right, 0);
-    window.set_margin(Edge::Bottom, 0);
-    window.auto_exclusive_zone_enable();
-    window.set_namespace(Some("tuxi-panel"));
-
-    // Só altura. Largura com L+R ancorados = output inteiro (protocolo layer-shell).
-    // size_request com largura fixa IMPEDIA o stretch (barra curta/centrada).
-    window.set_default_size(-1, PANEL_HEIGHT);
-    window.set_size_request(-1, PANEL_HEIGHT);
-}
-
-fn force_panel_width_fallback(window: &gtk::Window) {
-    let width = output_width_for(window).unwrap_or(1280);
-    window.set_default_size(width, PANEL_HEIGHT);
-    window.set_size_request(width, PANEL_HEIGHT);
-    warn!(width, "fallback de largura (sem layer-shell)");
-}
-
-fn output_width_for(window: &gtk::Window) -> Option<i32> {
     let display = WidgetExt::display(window);
-    if let Some(surface) = window.surface() {
-        let sw = surface.width();
-        if sw > 100 {
-            return Some(sw);
-        }
-        if let Some(monitor) = display.monitor_at_surface(&surface) {
-            let w = monitor.geometry().width();
-            if w > 0 {
-                return Some(w);
-            }
-        }
-    }
-    display
-        .monitors()
-        .item(0)
-        .and_downcast::<gdk::Monitor>()
+    let monitor = window
+        .surface()
+        .and_then(|s| display.monitor_at_surface(&s))
+        .or_else(|| display.monitors().item(0).and_downcast::<gdk::Monitor>());
+
+    let width = monitor
+        .as_ref()
         .map(|m| m.geometry().width())
         .filter(|w| *w > 0)
+        .unwrap_or(1280);
+
+    if let Some(m) = monitor.as_ref() {
+        if window.is_layer_window() {
+            window.set_monitor(Some(m));
+        }
+    }
+
+    window.set_default_size(width, PANEL_HEIGHT);
+    window.set_size_request(width, PANEL_HEIGHT);
+    window.queue_resize();
+    info!(
+        width,
+        is_layer = window.is_layer_window(),
+        "painel largura total aplicada"
+    );
 }
 
 fn configure_menu_layer_shell(window: &gtk::Window) {
