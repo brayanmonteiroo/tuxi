@@ -1,10 +1,5 @@
 #!/usr/bin/env bash
 # Instala a sessão de desenvolvimento TUXI+labwc.
-#
-# No Fedora XFCE o LightDM lista sobretudo xsessions — instalamos em
-# wayland-sessions E xsessions, com caminho absoluto no Exec.
-#
-# Com sudo: usa o home do SUDO_USER (não /root) e também copia para /usr/share.
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -30,15 +25,18 @@ if [[ "${EUID}" -eq 0 && -n "${TARGET_USER}" ]]; then
   chown "${TARGET_USER}:${TARGET_USER}" "${SESSION_BIN}" || true
 fi
 
+# Nome sem parênteses — alguns greeters LightDM engasgam com isso.
 desktop_body() {
   cat <<EOF
 [Desktop Entry]
-Name=TUXI (labwc)
-Comment=Compositor labwc + painel TUXI (desenvolvimento)
+Version=1.0
+Type=Application
+Name=TUXI labwc
+Comment=labwc + painel TUXI (desenvolvimento)
 Exec=dbus-run-session -- ${SESSION_BIN}
 TryExec=${SESSION_BIN}
-Type=Application
-DesktopNames=TUXI
+DesktopNames=labwc;TUXI;
+Keywords=tuxi;labwc;wayland;
 EOF
 }
 
@@ -58,22 +56,22 @@ if [[ "${EUID}" -eq 0 ]]; then
   install -d /usr/share/wayland-sessions /usr/share/xsessions
   write_desktop /usr/share/wayland-sessions/tuxi-labwc.desktop
   write_desktop /usr/share/xsessions/tuxi-labwc.desktop
-  echo "Também instalado em /usr/share/{wayland-sessions,xsessions}/"
-  echo "(Exec aponta para ${SESSION_BIN})"
+  echo "Instalado em /usr/share/{wayland-sessions,xsessions}/"
+  echo "Exec → ${SESSION_BIN}"
+  echo
+  echo "Reinicie o LightDM para recarregar a lista de sessões:"
+  echo "  sudo systemctl restart lightdm"
 else
-  echo "Para o LightDM do XFCE enxergar com certeza, rode também:"
-  echo "  sudo \"${REPO_ROOT}/scripts/install-dev-session.sh\""
+  echo "Depois rode: sudo \"${REPO_ROOT}/scripts/install-dev-session.sh\""
 fi
 
 echo
-echo "Usuário alvo: ${TARGET_USER} (${TARGET_HOME})"
-echo "Arquivos:"
+echo "Alvo: ${TARGET_USER} (${TARGET_HOME})"
 ls -la "${SESSION_BIN}"
 ls -la "${TARGET_HOME}/.local/share/xsessions/tuxi-labwc.desktop"
-ls -la "${TARGET_HOME}/.local/share/wayland-sessions/tuxi-labwc.desktop"
 echo
-echo "1) cargo build -p tuxi-panel  (em ${TARGET_HOME}/tuxi)"
-echo "2) Logout → na tela de login escolha \"TUXI (labwc)\""
-echo
-echo "Plano B (sem login): Ctrl+Alt+F3, login no TTY, depois:"
+echo "=== Como ver em TELA CHEIA (não janela) ==="
+echo "Virt-Manager → Send Key → Ctrl+Alt+F3"
+echo "login no TTY →:"
 echo "  dbus-run-session -- ${SESSION_BIN}"
+echo "Voltar ao login gráfico: Ctrl+Alt+F1 (ou F2)"

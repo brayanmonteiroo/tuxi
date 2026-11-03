@@ -1,15 +1,20 @@
 #!/usr/bin/env bash
 # Sessão de desenvolvimento: labwc + painel TUXI.
-# Uso: instalado em ~/.local/bin ou chamado pelo .desktop Wayland.
+#
+# Para tela CHEIA (não janela "wlroots - X11"):
+#   1) Logout até a tela de login, OU
+#   2) Virt-Manager → Send Key → Ctrl+Alt+F3 → login no TTY
+#   3) dbus-run-session -- ~/.local/bin/tuxi-labwc-session
+#
+# Se rodar de um terminal DENTRO do XFCE/Plasma, o labwc aninha em X11
+# (janela preta) — igual testar no host. Use TUXI_ALLOW_NESTED=1 só se for proposital.
 
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-REPO_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
 
 PANEL_CANDIDATES=(
   "${TUXI_PANEL:-}"
-  "${REPO_ROOT}/target/debug/tuxi-panel"
   "${HOME}/tuxi/target/debug/tuxi-panel"
   "${HOME}/.cargo/bin/tuxi-panel"
 )
@@ -32,7 +37,23 @@ if ! command -v labwc >/dev/null 2>&1; then
   exit 1
 fi
 
-# Sobe o painel logo após o compositor iniciar.
+# Evita o “abriu uma janela” sem perceber.
+if [[ -z "${TUXI_ALLOW_NESTED:-}" ]]; then
+  if [[ -n "${DISPLAY:-}" || -n "${WAYLAND_DISPLAY:-}" ]]; then
+    echo "ERRO: já existe sessão gráfica (DISPLAY=${DISPLAY:-} WAYLAND_DISPLAY=${WAYLAND_DISPLAY:-})." >&2
+    echo "O labwc vai abrir só como JANELA aninhada — não é o teste fullscreen." >&2
+    echo >&2
+    echo "Faça assim:" >&2
+    echo "  1) Logout até a tela de login da VM" >&2
+    echo "  2) No Virt-Manager: Send Key → Ctrl+Alt+F3" >&2
+    echo "  3) Login no TTY como ${USER}" >&2
+    echo "  4) dbus-run-session -- ${HOME}/.local/bin/tuxi-labwc-session" >&2
+    echo >&2
+    echo "Ou force aninhado (só debug): TUXI_ALLOW_NESTED=1 $0" >&2
+    exit 1
+  fi
+fi
+
 (
   sleep 0.4
   exec "${PANEL}"
