@@ -131,9 +131,6 @@ impl SimpleComponent for PanelModel {
             warn!(?err, "não foi possível carregar o CSS TUXI");
         }
 
-        configure_panel_layer_shell(&root);
-        sync_panel_to_output(&root);
-
         let apps = load_apps_by_category();
         let selected_category = AppCategory::ALL
             .into_iter()
@@ -155,6 +152,10 @@ impl SimpleComponent for PanelModel {
         let widgets = view_output!();
         model.menu_button = Some(widgets.menu_button.clone());
 
+        // Layer-shell DEPOIS dos filhos, ANTES do present (Relm4).
+        // Nunca fixar largura com size_request — isso impede o stretch L+R.
+        configure_panel_layer_shell(&root);
+
         rebuild_category_list(&menu.category_list, &model.apps, model.selected_category);
         wire_category_list(&menu.category_list, sender.clone());
         rebuild_app_pane(
@@ -165,15 +166,27 @@ impl SimpleComponent for PanelModel {
             sender.clone(),
         );
 
-        // Nested labwc e resize da janela mudam a geometria do output.
         {
             let win = root.clone();
+            root.connect_realize(move |w| {
+                ensure_panel_layer_shell(w);
+                info!(
+                    is_layer = w.is_layer_window(),
+                    anchor_left = w.is_anchor(Edge::Left),
+                    anchor_right = w.is_anchor(Edge::Right),
+                    "painel realize"
+                );
+            });
             root.connect_map(move |w| {
-                sync_panel_to_output(w);
+                ensure_panel_layer_shell(w);
+                // Se por algum motivo não for layer-surface, força largura do output.
+                if !w.is_layer_window() {
+                    force_panel_width_fallback(w);
+                }
+                let win2 = win.clone();
                 if let Some(surface) = w.surface() {
-                    let win2 = win.clone();
-                    surface.connect_enter_monitor(move |_, _monitor| {
-                        sync_panel_to_output(&win2);
+                    surface.connect_enter_monitor(move |_, _| {
+                        ensure_panel_layer_shell(&win2);
                     });
                 }
             });
@@ -406,36 +419,54 @@ fn build_menu_window(sender: ComponentSender<PanelModel>) -> MenuWidgets {
 }
 
 fn configure_panel_layer_shell(window: &gtk::Window) {
+    ensure_panel_layer_shell(window);
+}
+
+fn ensure_panel_layer_shell(window: &gtk::Window) {
     if !gtk4_layer_shell::is_supported() {
         warn!(
             "gtk4-layer-shell não suportado neste compositor; \
              o painel abrirá como janela normal (use KDE Plasma Wayland, Sway, labwc, etc.)"
         );
-        window.set_default_size(800, PANEL_HEIGHT);
+        force_panel_width_fallback(window);
         return;
     }
 
-    window.init_layer_shell();
+    if !window.is_layer_window() {
+        window.init_layer_shell();
+    }
+
     window.set_layer(Layer::Top);
     window.set_anchor(Edge::Left, true);
     window.set_anchor(Edge::Right, true);
     window.set_anchor(Edge::Bottom, true);
     window.set_anchor(Edge::Top, false);
-    window.set_exclusive_zone(PANEL_HEIGHT);
+    window.set_margin(Edge::Left, 0);
+    window.set_margin(Edge::Right, 0);
+    window.set_margin(Edge::Bottom, 0);
+    window.auto_exclusive_zone_enable();
     window.set_namespace(Some("tuxi-panel"));
+
+    // Só altura. Largura com L+R ancorados = output inteiro (protocolo layer-shell).
+    // size_request com largura fixa IMPEDIA o stretch (barra curta/centrada).
+    window.set_default_size(-1, PANEL_HEIGHT);
+    window.set_size_request(-1, PANEL_HEIGHT);
 }
 
-/// Ajusta largura/altura ao output atual (necessário no labwc nested).
-fn sync_panel_to_output(window: &gtk::Window) {
+fn force_panel_width_fallback(window: &gtk::Window) {
     let width = output_width_for(window).unwrap_or(1280);
     window.set_default_size(width, PANEL_HEIGHT);
     window.set_size_request(width, PANEL_HEIGHT);
-    info!(width, "painel sincronizado com o output");
+    warn!(width, "fallback de largura (sem layer-shell)");
 }
 
 fn output_width_for(window: &gtk::Window) -> Option<i32> {
     let display = WidgetExt::display(window);
     if let Some(surface) = window.surface() {
+        let sw = surface.width();
+        if sw > 100 {
+            return Some(sw);
+        }
         if let Some(monitor) = display.monitor_at_surface(&surface) {
             let w = monitor.geometry().width();
             if w > 0 {
