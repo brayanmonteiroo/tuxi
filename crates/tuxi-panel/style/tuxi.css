@@ -109,3 +109,28 @@
   letter-spacing: 0.04em;
   text-transform: uppercase;
 }
+
+.tuxi-power-bar {
+  padding-top: 4px;
+}
+
+.tuxi-power-button {
+  background-color: alpha(@tuxi_fg, 0.06);
+  border: 1px solid @tuxi_border;
+  border-radius: 8px;
+  color: @tuxi_fg;
+  padding: 6px 12px;
+  min-width: 72px;
+}
+
+.tuxi-power-button:hover {
+  background-color: alpha(@tuxi_accent, 0.25);
+}
+
+.tuxi-power-button.destructive-action {
+  border-color: alpha(@tuxi_danger, 0.55);
+}
+
+.tuxi-power-button.destructive-action:hover {
+  background-color: alpha(@tuxi_danger, 0.28);
+}

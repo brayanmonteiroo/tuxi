@@ -11,6 +11,7 @@ use relm4::gtk::{self, EventControllerKey, Orientation};
 use relm4::{ComponentParts, ComponentSender, SimpleComponent};
 use tracing::{error, info, warn};
 
+use crate::session_power::PowerAction;
 use crate::start_menu::{
     filter_apps, launch_by_id, load_apps_by_category, AppCategory, DesktopApp,
 };
@@ -28,6 +29,7 @@ pub(crate) enum PanelMsg {
     SearchChanged(String),
     SelectCategory(AppCategory),
     Launch(String),
+    Power(PowerAction),
     MenuClosed,
 }
 
@@ -269,6 +271,15 @@ impl SimpleComponent for PanelModel {
                 hide_menu(self);
                 sender.input(PanelMsg::MenuClosed);
             }
+            PanelMsg::Power(action) => {
+                hide_menu(self);
+                if let Some(button) = &self.menu_button {
+                    button.set_active(false);
+                }
+                if let Err(err) = action.run() {
+                    error!(?err, action = action.label(), "falha na ação de energia/sessão");
+                }
+            }
         }
     }
 }
@@ -338,6 +349,34 @@ fn build_menu_window(sender: ComponentSender<PanelModel>) -> MenuWidgets {
     columns.append(&gtk::Separator::new(Orientation::Vertical));
     columns.append(&apps_scroll);
 
+    let power_bar = gtk::Box::new(Orientation::Horizontal, 6);
+    power_bar.set_halign(gtk::Align::End);
+    power_bar.add_css_class("tuxi-power-bar");
+
+    for action in [
+        PowerAction::Logout,
+        PowerAction::Reboot,
+        PowerAction::PowerOff,
+    ] {
+        let btn = gtk::Button::builder()
+            .label(action.label())
+            .tooltip_text(match action {
+                PowerAction::Logout => "Encerrar a sessão e voltar ao login",
+                PowerAction::Reboot => "Reiniciar a máquina",
+                PowerAction::PowerOff => "Desligar a máquina",
+            })
+            .build();
+        btn.add_css_class("tuxi-power-button");
+        if action == PowerAction::PowerOff {
+            btn.add_css_class("destructive-action");
+        }
+        let sender = sender.clone();
+        btn.connect_clicked(move |_| {
+            sender.input(PanelMsg::Power(action));
+        });
+        power_bar.append(&btn);
+    }
+
     let root = gtk::Box::new(Orientation::Vertical, 8);
     root.set_margin_top(10);
     root.set_margin_bottom(10);
@@ -345,6 +384,8 @@ fn build_menu_window(sender: ComponentSender<PanelModel>) -> MenuWidgets {
     root.set_margin_end(10);
     root.append(&search_entry);
     root.append(&columns);
+    root.append(&gtk::Separator::new(Orientation::Horizontal));
+    root.append(&power_bar);
 
     window.set_child(Some(&root));
 

@@ -1,6 +1,7 @@
 //! Binário do painel TUXI — barra inferior e menu iniciar.
 
 mod panel;
+mod session_power;
 mod start_menu;
 mod style;
 
