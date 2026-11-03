@@ -4,7 +4,7 @@ use std::collections::BTreeMap;
 
 use chrono::Local;
 use gtk4_layer_shell::{Edge, KeyboardMode, Layer, LayerShell};
-use relm4::gtk::gdk::{Key, ModifierType};
+use relm4::gtk::gdk::{self, Key, ModifierType};
 use relm4::gtk::glib;
 use relm4::gtk::prelude::*;
 use relm4::gtk::{self, EventControllerKey, Orientation};
@@ -19,8 +19,8 @@ use crate::start_menu::{
 const PANEL_HEIGHT: i32 = 40;
 /// Folga entre a borda inferior do menu e o topo da barra (px).
 const MENU_GAP_ABOVE_PANEL: i32 = 2;
-const MENU_WIDTH: i32 = 520;
-const MENU_HEIGHT: i32 = 460;
+const MENU_WIDTH: i32 = 720;
+const MENU_HEIGHT: i32 = 560;
 
 #[derive(Debug)]
 pub(crate) enum PanelMsg {
@@ -132,9 +132,7 @@ impl SimpleComponent for PanelModel {
         }
 
         configure_panel_layer_shell(&root);
-        // Layer-shell com âncoras L/R estica com o output; não fixar largura em px.
-        root.set_size_request(-1, PANEL_HEIGHT);
-        root.set_default_size(-1, PANEL_HEIGHT);
+        sync_panel_to_output(&root);
 
         let apps = load_apps_by_category();
         let selected_category = AppCategory::ALL
@@ -167,11 +165,17 @@ impl SimpleComponent for PanelModel {
             sender.clone(),
         );
 
-        // Reaplica altura ao mapear (output pode mudar ao fullscreen da VM).
+        // Nested labwc e resize da janela mudam a geometria do output.
         {
             let win = root.clone();
-            root.connect_map(move |_| {
-                win.set_size_request(-1, PANEL_HEIGHT);
+            root.connect_map(move |w| {
+                sync_panel_to_output(w);
+                if let Some(surface) = w.surface() {
+                    let win2 = win.clone();
+                    surface.connect_enter_monitor(move |_, _monitor| {
+                        sync_panel_to_output(&win2);
+                    });
+                }
             });
         }
 
@@ -419,6 +423,32 @@ fn configure_panel_layer_shell(window: &gtk::Window) {
     window.set_anchor(Edge::Top, false);
     window.set_exclusive_zone(PANEL_HEIGHT);
     window.set_namespace(Some("tuxi-panel"));
+}
+
+/// Ajusta largura/altura ao output atual (necessário no labwc nested).
+fn sync_panel_to_output(window: &gtk::Window) {
+    let width = output_width_for(window).unwrap_or(1280);
+    window.set_default_size(width, PANEL_HEIGHT);
+    window.set_size_request(width, PANEL_HEIGHT);
+    info!(width, "painel sincronizado com o output");
+}
+
+fn output_width_for(window: &gtk::Window) -> Option<i32> {
+    let display = WidgetExt::display(window);
+    if let Some(surface) = window.surface() {
+        if let Some(monitor) = display.monitor_at_surface(&surface) {
+            let w = monitor.geometry().width();
+            if w > 0 {
+                return Some(w);
+            }
+        }
+    }
+    display
+        .monitors()
+        .item(0)
+        .and_downcast::<gdk::Monitor>()
+        .map(|m| m.geometry().width())
+        .filter(|w| *w > 0)
 }
 
 fn configure_menu_layer_shell(window: &gtk::Window) {

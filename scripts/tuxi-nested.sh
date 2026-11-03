@@ -4,8 +4,8 @@
 #   cargo build -p tuxi-panel
 #   ./scripts/tuxi-nested.sh
 #
-# Usa `labwc -s` para o compositor exportar o WAYLAND_DISPLAY certo ao painel.
-# Config isolada em /tmp — não usa ~/.config/labwc (autostart da sessão VM).
+# Clique direito no fundo preto = menu do LABWC (compositor), NÃO do TUXI.
+# O TUXI por agora é a barra + menu iniciar.
 
 set -euo pipefail
 
@@ -27,22 +27,30 @@ CFG="$(mktemp -d /tmp/tuxi-nested-XXXXXX)"
 cleanup() { rm -rf "${CFG}"; }
 trap cleanup EXIT
 
-# Autostart vazio: o painel sobe só via -s (com env Wayland do labwc).
 cat > "${CFG}/autostart" <<'EOF'
 #!/usr/bin/env bash
-# nested: sem autostart extra
 true
 EOF
 chmod +x "${CFG}/autostart"
 
-# rc.xml mínimo opcional — labwc usa defaults se faltar.
-# Ambiente nested em compositor Wayland do host:
+# Menu de fundo = labwc (deixa explícito que ainda não é o desktop TUXI).
+cat > "${CFG}/menu.xml" <<'EOF'
+<?xml version="1.0" encoding="UTF-8"?>
+<openbox_menu>
+  <menu id="root-menu" label="labwc (não é TUXI)">
+    <item label="Fechar nested">
+      <action name="Exit"/>
+    </item>
+  </menu>
+</openbox_menu>
+EOF
+
 export TUXI_ALLOW_NESTED=1
 export WLR_BACKENDS="${WLR_BACKENDS:-wayland}"
 
 echo "Abrindo labwc nested + tuxi-panel…"
-echo "Config temporária: ${CFG}"
+echo "Clique direito no preto = menu do labwc (compositor)."
+echo "Barra + Menu = TUXI."
 echo "Fecha a janela do labwc para terminar."
 
-# -s corre o comando DEPOIS do socket Wayland existir (env já corrigido).
 exec labwc -C "${CFG}" -s "${PANEL}"
