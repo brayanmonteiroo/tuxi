@@ -1,7 +1,9 @@
 # Ambiente da sessão labwc TUXI (labwc lê "environment" no -C).
 XDG_CURRENT_DESKTOP=TUXI:labwc
 XDG_SESSION_DESKTOP=tuxi
-# Preferir SSD do labwc (tema TUXI) em vez de CSD cru do toolkit.
+# Preferir SSD do labwc (tema TUXI) em vez de CSD do toolkit.
 GTK_CSD=0
+# Qt: não desenhar decoração cliente quando o compositor oferece SSD.
+QT_WAYLAND_DISABLE_WINDOWDECORATION=1
 # Não herdar “sou uma sessão KDE” (evita KWallet / atalhos globais no nested).
 # labwc não faz unset; o painel limpa estas vars ao lançar apps no nested.

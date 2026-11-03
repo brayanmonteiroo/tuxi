@@ -1,10 +1,10 @@
 //! Janela principal: sidebar em altura total + conteúdo.
 //!
-//! Usa `gtk::ApplicationWindow` (não Adw) para o labwc aplicar a SSD TUXI
-//! (minimizar / maximizar / fechar). O header interno é só título, sem CSD.
+//! Usa `gtk::ApplicationWindow` + `GTK_CSD=0` para o labwc desenhar a SSD TUXI
+//! (minimizar / maximizar / fechar). Título da janela = "Configurações — Página".
+//! Sem HeaderBar interna — evita botões duplicados.
 
-use relm4::adw::{self, prelude::*};
-use relm4::gtk::{self, Orientation};
+use relm4::gtk::{self, prelude::*, Orientation};
 use relm4::{ComponentParts, ComponentSender, SimpleComponent};
 use tracing::warn;
 
@@ -16,6 +16,26 @@ pub(crate) struct SettingsModel {
     search: String,
     sidebar: Option<gtk::ListBox>,
     content_host: Option<gtk::Box>,
+    window: Option<gtk::ApplicationWindow>,
+}
+
+/// Página inicial (`--page displays`, etc.).
+pub(crate) fn parse_initial_page() -> PageId {
+    let mut args = std::env::args().skip(1);
+    while let Some(a) = args.next() {
+        if a == "--page" {
+            if let Some(id) = args.next() {
+                return PageId::from_id(&id).unwrap_or(PageId::About);
+            }
+        } else if let Some(id) = a.strip_prefix("--page=") {
+            return PageId::from_id(id).unwrap_or(PageId::About);
+        }
+    }
+    PageId::About
+}
+
+fn window_title(page: PageId) -> String {
+    format!("Configurações — {}", page.title())
 }
 
 #[derive(Debug)]
@@ -26,20 +46,18 @@ pub(crate) enum SettingsMsg {
 
 #[relm4::component(pub)]
 impl SimpleComponent for SettingsModel {
-    type Init = ();
+    type Init = PageId;
     type Input = SettingsMsg;
     type Output = ();
 
     view! {
         #[root]
         gtk::ApplicationWindow {
-            set_title: Some("Configurações"),
             set_default_width: 960,
             set_default_height: 640,
             set_decorated: true,
             add_css_class: "tuxi-settings",
 
-            // Sidebar | (header + conteúdo) — sidebar até ao topo da área cliente.
             gtk::Box {
                 set_orientation: Orientation::Horizontal,
                 set_vexpand: true,
@@ -82,38 +100,19 @@ impl SimpleComponent for SettingsModel {
                     set_orientation: Orientation::Vertical,
                 },
 
+                #[name = "content_host"]
                 gtk::Box {
                     set_orientation: Orientation::Vertical,
                     set_hexpand: true,
                     set_vexpand: true,
-
-                    #[name = "header"]
-                    adw::HeaderBar {
-                        // Título interno — botões de janela vêm da SSD do labwc.
-                        set_show_start_title_buttons: false,
-                        set_show_end_title_buttons: false,
-                        #[wrap(Some)]
-                        set_title_widget = &adw::WindowTitle {
-                            set_title: "Configurações",
-                            #[watch]
-                            set_subtitle: model.selected.title(),
-                        },
-                    },
-
-                    #[name = "content_host"]
-                    gtk::Box {
-                        set_orientation: Orientation::Vertical,
-                        set_hexpand: true,
-                        set_vexpand: true,
-                        add_css_class: "tuxi-settings-content",
-                    },
+                    add_css_class: "tuxi-settings-content",
                 },
             },
         }
     }
 
     fn init(
-        _init: Self::Init,
+        init: Self::Init,
         root: Self::Root,
         sender: ComponentSender<Self>,
     ) -> ComponentParts<Self> {
@@ -122,29 +121,27 @@ impl SimpleComponent for SettingsModel {
         }
 
         let mut model = SettingsModel {
-            selected: PageId::About,
+            selected: init,
             search: String::new(),
             sidebar: None,
             content_host: None,
+            window: None,
         };
 
         let widgets = view_output!();
         model.sidebar = Some(widgets.sidebar.clone());
         model.content_host = Some(widgets.content_host.clone());
+        model.window = Some(root.clone());
 
-        widgets.header.set_show_start_title_buttons(false);
-        widgets.header.set_show_end_title_buttons(false);
-
-        // Sem titlebar CSD do GTK; botões TUXI no header (mesmo visual da SSD).
+        // Só SSD do labwc — sem titlebar CSD nem botões cliente.
         root.set_titlebar(gtk::Widget::NONE);
         root.set_decorated(true);
-        crate::window_controls::pack_into_header(&widgets.header, &root);
+        root.set_title(Some(&window_title(init)));
 
         populate_sidebar(&widgets.sidebar, &model.search, model.selected);
         show_page(&widgets.content_host, model.selected);
         widgets.search_entry.grab_focus();
 
-        // Abrir maximizado (padrão do DE + reforço local).
         let win = root.clone();
         gtk::glib::idle_add_local_once(move || {
             win.maximize();
@@ -157,6 +154,9 @@ impl SimpleComponent for SettingsModel {
         match msg {
             SettingsMsg::Select(id) => {
                 self.selected = id;
+                if let Some(win) = &self.window {
+                    win.set_title(Some(&window_title(id)));
+                }
                 if let Some(host) = &self.content_host {
                     show_page(host, id);
                 }
@@ -252,7 +252,5 @@ fn show_page(host: &gtk::Box, id: PageId) {
     while let Some(child) = host.first_child() {
         host.remove(&child);
     }
-    let page = build_page(id);
-    page.set_vexpand(true);
-    host.append(&page);
+    host.append(&build_page(id));
 }

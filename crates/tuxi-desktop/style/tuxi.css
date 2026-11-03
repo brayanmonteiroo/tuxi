@@ -1,0 +1,186 @@
+/* Tokens TUXI — área de trabalho */
+
+@define-color tuxi_bg #16191e;
+@define-color tuxi_bg_elevated #1e232b;
+@define-color tuxi_bg_row #252b34;
+@define-color tuxi_fg #e8eaed;
+@define-color tuxi_fg_muted #9aa0a6;
+@define-color tuxi_accent #3d8bfd;
+@define-color tuxi_border #343b46;
+
+window.tuxi-desktop {
+  background-color: @tuxi_bg;
+}
+
+.tuxi-desktop-wallpaper,
+.tuxi-desktop-wallpaper-empty {
+  background-color: @tuxi_bg;
+}
+
+.tuxi-desktop-canvas {
+  background-color: transparent;
+}
+
+.tuxi-desktop-icon {
+  border-radius: 10px;
+  padding: 6px 8px;
+  background-color: transparent;
+  border: 1px solid transparent;
+  color: @tuxi_fg;
+}
+
+.tuxi-desktop-icon:hover {
+  background-color: alpha(@tuxi_fg, 0.1);
+}
+
+.tuxi-desktop-icon.selected {
+  background-color: alpha(@tuxi_accent, 0.35);
+  border-color: alpha(@tuxi_accent, 0.65);
+}
+
+.tuxi-desktop-icon label {
+  color: @tuxi_fg;
+  font-size: 0.85em;
+  text-shadow: 0 1px 3px alpha(#000, 0.85);
+}
+
+/* Um único fundo: limpar o shell do Popover; pintar só o contents. */
+popover.tuxi-desktop-menu {
+  background: transparent;
+  border: none;
+  padding: 0;
+  box-shadow: none;
+}
+
+popover.tuxi-desktop-menu > contents {
+  background-color: @tuxi_bg_elevated;
+  border: 1px solid @tuxi_border;
+  border-radius: 10px;
+  padding: 4px;
+  min-width: 200px;
+  box-shadow: 0 8px 24px alpha(#000, 0.45);
+}
+
+.tuxi-desktop-menu-box {
+  background: transparent;
+  margin: 0;
+  padding: 0;
+}
+
+.tuxi-desktop-menu-item {
+  background: transparent;
+  border: none;
+  border-radius: 6px;
+  color: @tuxi_fg;
+  padding: 4px 8px;
+  min-height: 28px;
+  margin: 0;
+}
+
+.tuxi-desktop-menu-item:hover {
+  background-color: alpha(@tuxi_accent, 0.28);
+}
+
+.tuxi-desktop-menu-item label {
+  color: @tuxi_fg;
+  font-size: 0.92em;
+}
+
+.tuxi-desktop-menu-chevron {
+  color: @tuxi_fg_muted;
+  margin-left: 8px;
+}
+
+.tuxi-desktop-menu-sep {
+  margin: 4px 6px;
+  background-color: @tuxi_border;
+}
+
+/* Modal de nome — centrada, chrome TUXI, bloqueia o desktop atrás. */
+.tuxi-desktop-modal-dim {
+  background-color: alpha(#000, 0.5);
+}
+
+.tuxi-desktop-modal-card {
+  background-color: @tuxi_bg_elevated;
+  border: 1px solid @tuxi_border;
+  border-radius: 12px;
+  min-width: 320px;
+  box-shadow: 0 12px 40px alpha(#000, 0.55);
+  overflow: hidden;
+}
+
+.tuxi-desktop-modal-header {
+  background-color: @tuxi_bg;
+  border-bottom: 1px solid @tuxi_border;
+  padding: 6px 8px 6px 14px;
+  min-height: 36px;
+}
+
+.tuxi-desktop-modal-title {
+  color: @tuxi_fg;
+  font-weight: 600;
+  font-size: 0.95em;
+}
+
+.tuxi-desktop-modal-body {
+  padding: 16px 18px 18px;
+}
+
+.tuxi-desktop-modal-body .dim-label {
+  color: @tuxi_fg_muted;
+  font-size: 0.9em;
+}
+
+.tuxi-desktop-modal-btn {
+  background-color: @tuxi_bg_row;
+  border: 1px solid @tuxi_border;
+  border-radius: 8px;
+  color: @tuxi_fg;
+  padding: 6px 14px;
+  min-height: 32px;
+}
+
+.tuxi-desktop-modal-btn:hover {
+  background-color: alpha(@tuxi_fg, 0.12);
+  border-color: alpha(@tuxi_accent, 0.45);
+}
+
+.tuxi-desktop-modal-btn.suggested-action {
+  background-color: @tuxi_accent;
+  border-color: alpha(@tuxi_accent, 0.8);
+  color: #ffffff;
+}
+
+.tuxi-desktop-modal-btn.suggested-action:hover {
+  background-color: mix(@tuxi_accent, #ffffff, 0.12);
+}
+
+/* Botões de janela — espelho do themerc SSD TUXI. */
+.tuxi-winbtn {
+  min-width: 28px;
+  min-height: 28px;
+  padding: 0;
+  border: none;
+  border-radius: 8px;
+  background-color: transparent;
+  box-shadow: none;
+  color: #9aa0a6;
+}
+
+.tuxi-winbtn:hover {
+  background-color: alpha(#e8eaed, 0.09);
+}
+
+.tuxi-winbtn-close {
+  color: #e35d6a;
+}
+
+.tuxi-winbtn-close:hover {
+  background-color: alpha(#e35d6a, 0.28);
+  color: #ff8a94;
+}
+
+.tuxi-winbtn image {
+  -gtk-icon-size: 16px;
+}

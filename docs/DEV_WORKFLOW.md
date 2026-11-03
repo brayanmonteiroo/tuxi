@@ -58,7 +58,7 @@ Não precisas dos dois em loop. Nested = compositor; reload = painel.
 ### A) Nested (mesmo compositor do produto)
 
 ```bash
-cargo build -p tuxi-panel -p tuxi-settings
+cargo build -p tuxi-panel -p tuxi-settings -p tuxi-desktop
 sudo dnf install -y labwc wlr-randr   # uma vez (wlr-randr = página Telas)
 ./scripts/tuxi-nested.sh    # terminal A — fica aberto
 # terminal B, depois de editar o painel:
@@ -67,6 +67,11 @@ sudo dnf install -y labwc wlr-randr   # uma vez (wlr-randr = página Telas)
 
 **Configurações:** app `tuxi-settings` (menu → Configurações). Sobre e Telas
 têm backend; outras secções são placeholder. Telas precisa de `wlr-randr`.
+Deep-link: `tuxi-settings --page displays`.
+
+**Área de trabalho:** `tuxi-desktop` (layer-shell bottom) lê `XDG_DESKTOP_DIR`,
+ícones arrastáveis, menu de contexto (novo/templates, colar, telas, wallpaper,
+terminal, bloquear). O `tuxi-reload-panel.sh` também relança o desktop.
 
 O nested usa `dbus-run-session` (D-Bus próprio) e grava
 `$XDG_RUNTIME_DIR/tuxi-nested-env` para o reload herdar o mesmo bus/Wayland.

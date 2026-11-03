@@ -1,25 +1,44 @@
 //! Informação do sistema para a página Sobre.
 
-use std::fs;
 use std::collections::HashMap;
+use std::fs;
+
+use relm4::gtk;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct SystemInfo {
     pub hostname: String,
+    pub os_id: String,
     pub os_name: String,
     pub os_version: String,
     pub pretty_name: String,
     pub kernel: String,
     pub cpu_model: String,
     pub memory_total_mb: u64,
+    pub session_type: String,
+    pub desktop: String,
+    pub compositor: String,
+    pub gtk_version: String,
+    pub tuxi_version: String,
 }
 
 impl SystemInfo {
     pub(crate) fn gather() -> Self {
         let os = parse_os_release(&read_lossy("/etc/os-release"));
         let mem_kb = parse_meminfo_total_kb(&read_lossy("/proc/meminfo"));
+        let session_type = std::env::var("XDG_SESSION_TYPE").unwrap_or_else(|_| "desconhecido".into());
+        let desktop = std::env::var("XDG_CURRENT_DESKTOP")
+            .or_else(|_| std::env::var("XDG_SESSION_DESKTOP"))
+            .unwrap_or_else(|_| "TUXI".into());
+        let compositor = if session_type.eq_ignore_ascii_case("wayland") {
+            detect_compositor()
+        } else {
+            "X11".into()
+        };
+
         Self {
             hostname: read_lossy("/etc/hostname").trim().to_string(),
+            os_id: os.get("ID").cloned().unwrap_or_default(),
             os_name: os
                 .get("NAME")
                 .cloned()
@@ -38,6 +57,16 @@ impl SystemInfo {
                 .to_string(),
             cpu_model: parse_cpu_model(&read_lossy("/proc/cpuinfo")),
             memory_total_mb: mem_kb / 1024,
+            session_type,
+            desktop,
+            compositor,
+            gtk_version: format!(
+                "{}.{}.{}",
+                gtk::major_version(),
+                gtk::minor_version(),
+                gtk::micro_version()
+            ),
+            tuxi_version: env!("CARGO_PKG_VERSION").to_string(),
         }
     }
 
@@ -48,6 +77,36 @@ impl SystemInfo {
             format!("{} MiB", self.memory_total_mb)
         }
     }
+
+    pub(crate) fn distro_icon_name(&self) -> &'static str {
+        match self.os_id.as_str() {
+            "fedora" => "fedora-logo-icon",
+            "debian" => "debian-logo",
+            "ubuntu" => "ubuntu-logo",
+            "arch" => "archlinux-logo",
+            _ => "distributor-logo",
+        }
+    }
+}
+
+fn detect_compositor() -> String {
+    if std::env::var_os("LABWC_PID").is_some()
+        || std::env::var("XDG_CURRENT_DESKTOP")
+            .unwrap_or_default()
+            .to_ascii_lowercase()
+            .contains("labwc")
+        || std::env::var("XDG_SESSION_DESKTOP")
+            .unwrap_or_default()
+            .eq_ignore_ascii_case("tuxi")
+    {
+        return "labwc (Wayland)".into();
+    }
+    if let Ok(desktop) = std::env::var("XDG_CURRENT_DESKTOP") {
+        if !desktop.is_empty() {
+            return format!("{desktop} (Wayland)");
+        }
+    }
+    "Wayland".into()
 }
 
 fn read_lossy(path: &str) -> String {
@@ -95,7 +154,6 @@ pub(crate) fn parse_cpu_model(contents: &str) -> String {
             }
         }
     }
-    // ARM / outros
     for line in contents.lines() {
         if let Some(model) = line.strip_prefix("Hardware") {
             let model = model.trim().trim_start_matches(':').trim().to_string();

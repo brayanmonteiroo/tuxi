@@ -80,11 +80,17 @@ fn should_hide_task(app_id: &str, title: &str) -> bool {
 
 fn is_tuxi_chrome(app_id: &str, title: &str) -> bool {
     let app = app_id.to_ascii_lowercase();
-    if app.contains("org.tuxi.panel") || app == "tuxi-panel" {
+    if app.contains("org.tuxi.panel")
+        || app.contains("org.tuxi.desktop")
+        || app == "tuxi-panel"
+        || app == "tuxi-desktop"
+    {
         return true;
     }
     let t = title.trim();
-    t.eq_ignore_ascii_case("TUXI Panel") || t.eq_ignore_ascii_case("TUXI Menu")
+    t.eq_ignore_ascii_case("TUXI Panel")
+        || t.eq_ignore_ascii_case("TUXI Menu")
+        || t.eq_ignore_ascii_case("TUXI Desktop")
 }
 
 /// Diálogos KDE (KWallet / atalhos) que vazam para o nested via D-Bus.

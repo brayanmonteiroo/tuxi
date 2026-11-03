@@ -54,6 +54,7 @@ Detalhes e justificativa: [docs/decisions/0001-stack.md](docs/decisions/0001-sta
 |-------|--------|
 | `tuxi-panel` | Barra inferior + menu iniciar (binário Relm4) |
 | `tuxi-settings` | Central de configurações (Sobre, Telas, placeholders) |
+| `tuxi-desktop` | Área de trabalho (ícones XDG Desktop + wallpaper) |
 
 ### Crescimento (quando o código pedir extração)
 

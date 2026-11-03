@@ -11,26 +11,27 @@ pub(crate) fn build_about_page() -> gtk::Widget {
 
     let brand = adw::PreferencesGroup::new();
     brand.set_title("TUXI");
-    brand.set_description(Some("Ambiente gráfico em desenvolvimento"));
+    brand.set_description(Some("Ambiente gráfico tradicional sobre labwc"));
 
     let logo_row = adw::ActionRow::builder()
         .title("Ambiente")
-        .subtitle("TUXI sobre labwc")
+        .subtitle(format!("TUXI {}", info.tuxi_version))
         .build();
-    let logo = gtk::Image::from_icon_name("distributor-logo");
-    logo.set_pixel_size(48);
+    let logo = gtk::Image::from_icon_name("applications-system-symbolic");
+    logo.set_pixel_size(40);
     logo_row.add_prefix(&logo);
     brand.add(&logo_row);
 
-    let host_row = adw::ActionRow::builder()
-        .title("Nome do dispositivo")
-        .subtitle(if info.hostname.is_empty() {
-            "desconhecido"
-        } else {
-            &info.hostname
-        })
-        .build();
-    brand.add(&host_row);
+    brand.add(
+        &adw::ActionRow::builder()
+            .title("Nome do dispositivo")
+            .subtitle(if info.hostname.is_empty() {
+                "desconhecido"
+            } else {
+                &info.hostname
+            })
+            .build(),
+    );
     page.add(&brand);
 
     let os = adw::PreferencesGroup::new();
@@ -40,7 +41,7 @@ pub(crate) fn build_about_page() -> gtk::Widget {
         .title("Distribuição")
         .subtitle(&info.pretty_name)
         .build();
-    let distro_icon = gtk::Image::from_icon_name("distributor-logo");
+    let distro_icon = gtk::Image::from_icon_name(info.distro_icon_name());
     distro_icon.set_pixel_size(28);
     pretty.add_prefix(&distro_icon);
     os.add(&pretty);
@@ -66,6 +67,48 @@ pub(crate) fn build_about_page() -> gtk::Widget {
             .build(),
     );
     page.add(&os);
+
+    let stack = adw::PreferencesGroup::new();
+    stack.set_title("Ambiente gráfico");
+    stack.set_description(Some("Sessão e stack TUXI"));
+
+    stack.add(
+        &adw::ActionRow::builder()
+            .title("Plataforma gráfica")
+            .subtitle(&info.session_type)
+            .build(),
+    );
+    stack.add(
+        &adw::ActionRow::builder()
+            .title("Compositor")
+            .subtitle(&info.compositor)
+            .build(),
+    );
+    stack.add(
+        &adw::ActionRow::builder()
+            .title("Desktop")
+            .subtitle(&info.desktop)
+            .build(),
+    );
+    stack.add(
+        &adw::ActionRow::builder()
+            .title("GTK")
+            .subtitle(&info.gtk_version)
+            .build(),
+    );
+    stack.add(
+        &adw::ActionRow::builder()
+            .title("Libadwaita / Relm4")
+            .subtitle("Libadwaita + Relm4 (Rust)")
+            .build(),
+    );
+    stack.add(
+        &adw::ActionRow::builder()
+            .title("TUXI (este build)")
+            .subtitle(&info.tuxi_version)
+            .build(),
+    );
+    page.add(&stack);
 
     let hw = adw::PreferencesGroup::new();
     hw.set_title("Hardware");

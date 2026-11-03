@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Recompila e relança só o painel no labwc nested (sem fechar a janela).
+# Recompila e relança painel (+ desktop) no labwc nested (sem fechar a janela).
 #
 #   ./scripts/tuxi-nested.sh          # UMA VEZ (deixa aberto)
 #   ./scripts/tuxi-reload-panel.sh    # a cada mudança de código/CSS
@@ -8,6 +8,8 @@ set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 PANEL="${ROOT}/target/debug/tuxi-panel"
+DESKTOP="${ROOT}/target/debug/tuxi-desktop"
+SETTINGS="${ROOT}/target/debug/tuxi-settings"
 RUNTIME="${XDG_RUNTIME_DIR:-/run/user/$(id -u)}"
 NESTED_DISPLAY_FILE="${RUNTIME}/tuxi-nested-display"
 NESTED_ENV_FILE="${RUNTIME}/tuxi-nested-env"
@@ -19,7 +21,7 @@ if [[ -d "${ROOT}/vendor/prefix/usr/lib64" ]]; then
   export LD_LIBRARY_PATH="${ROOT}/vendor/prefix/usr/lib64${LD_LIBRARY_PATH:+:${LD_LIBRARY_PATH}}"
 fi
 
-cargo build -p tuxi-panel
+cargo build -p tuxi-panel -p tuxi-desktop -p tuxi-settings
 
 NESTED_DISPLAY=""
 NESTED_DBUS=""
@@ -72,18 +74,26 @@ if [[ ! -S "${RUNTIME}/${NESTED_DISPLAY}" ]]; then
 fi
 
 pkill -x tuxi-panel 2>/dev/null || true
+pkill -x tuxi-desktop 2>/dev/null || true
 sleep 0.2
 
 export TUXI_ALLOW_NESTED=1
 export WAYLAND_DISPLAY="${NESTED_DISPLAY}"
+export TUXI_SETTINGS="${SETTINGS}"
+export TUXI_DESKTOP="${DESKTOP}"
 # Crítico: sem isto o painel relançado usa o D-Bus do Plasma e apps abrem no host.
 if [[ -n "${NESTED_DBUS}" ]]; then
   export DBUS_SESSION_BUS_ADDRESS="${NESTED_DBUS}"
 fi
 
-echo "Relançando painel nested WAYLAND_DISPLAY=${NESTED_DISPLAY}"
+echo "Relançando desktop + painel nested WAYLAND_DISPLAY=${NESTED_DISPLAY}"
 if [[ -n "${NESTED_DBUS}" ]]; then
   echo "  DBUS_SESSION_BUS_ADDRESS=(dbus do nested)"
 fi
+if [[ -x "${DESKTOP}" ]]; then
+  "${DESKTOP}" &
+  echo "OK desktop — PID $!"
+  sleep 0.15
+fi
 "${PANEL}" &
-echo "OK — PID $!"
+echo "OK painel — PID $!"

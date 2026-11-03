@@ -68,13 +68,13 @@ Detalhes e como outros DEs desenvolvem: [docs/DEV_WORKFLOW.md](docs/DEV_WORKFLOW
 ### Nested (ciclo rápido, como Cosmic/KWin nested)
 
 ```bash
-cargo build -p tuxi-panel
+cargo build -p tuxi-panel -p tuxi-desktop -p tuxi-settings
 ./scripts/tuxi-nested.sh          # abre a janela (uma vez)
 # ... edita código/CSS ...
-./scripts/tuxi-reload-panel.sh    # rebuild + só o painel (sem fechar labwc)
+./scripts/tuxi-reload-panel.sh    # rebuild + painel/desktop (sem fechar labwc)
 ```
 
-Não precisas reiniciar o nested a cada mudança — só o painel.  
+Não precisas reiniciar o nested a cada mudança de painel/desktop.  
 Só o painel no Plasma (sem labwc): `cargo run -p tuxi-panel`.
 
 ### Qualidade

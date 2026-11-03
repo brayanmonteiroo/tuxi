@@ -14,15 +14,19 @@ set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 PANEL="${TUXI_PANEL:-${ROOT}/target/debug/tuxi-panel}"
+DESKTOP="${TUXI_DESKTOP:-${ROOT}/target/debug/tuxi-desktop}"
 RUNTIME="${XDG_RUNTIME_DIR:-/run/user/$(id -u)}"
 NESTED_DISPLAY_FILE="${RUNTIME}/tuxi-nested-display"
 NESTED_ENV_FILE="${RUNTIME}/tuxi-nested-env"
 PACKAGING_CFG="${ROOT}/packaging/labwc"
 
 if [[ ! -x "${PANEL}" ]]; then
-  echo "Compile primeiro: cargo build -p tuxi-panel" >&2
+  echo "Compile primeiro: cargo build -p tuxi-panel -p tuxi-desktop -p tuxi-settings" >&2
   echo "Esperado: ${PANEL}" >&2
   exit 1
+fi
+if [[ ! -x "${DESKTOP}" ]]; then
+  echo "aviso: tuxi-desktop em falta — nested sem área de trabalho (${DESKTOP})" >&2
 fi
 
 if ! command -v labwc >/dev/null 2>&1; then
@@ -109,6 +113,7 @@ XDG_DATA_DIRS=${XDG_DATA_DIRS}
 PASSWORD_STORE=basic
 CHROME_PASSWORD_STORE=basic
 GTK_CSD=0
+QT_WAYLAND_DISABLE_WINDOWDECORATION=1
 EOF
 
 cat > "${CFG}/autostart" <<'EOF'
@@ -135,6 +140,13 @@ export PASSWORD_STORE="\${PASSWORD_STORE:-basic}"
 export CHROME_PASSWORD_STORE="\${CHROME_PASSWORD_STORE:-basic}"
 if [[ -d "${ROOT}/vendor/prefix/usr/lib64" ]]; then
   export LD_LIBRARY_PATH="${ROOT}/vendor/prefix/usr/lib64\${LD_LIBRARY_PATH:+:\${LD_LIBRARY_PATH}}"
+fi
+export TUXI_SETTINGS="${SETTINGS_BIN}"
+export TUXI_DESKTOP="${DESKTOP}"
+# Área de trabalho (layer bottom) antes do painel.
+if [[ -x "${DESKTOP}" ]]; then
+  "${DESKTOP}" &
+  sleep 0.15
 fi
 exec "${PANEL}"
 EOF
