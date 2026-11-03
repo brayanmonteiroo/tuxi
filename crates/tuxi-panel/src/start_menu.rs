@@ -57,6 +57,27 @@ impl AppCategory {
         }
     }
 
+    /// Identificador estável para guardar na row GTK (`widget_name`).
+    pub(crate) fn id(self) -> &'static str {
+        match self {
+            Self::Development => "development",
+            Self::Education => "education",
+            Self::Graphics => "graphics",
+            Self::Internet => "internet",
+            Self::Multimedia => "multimedia",
+            Self::Office => "office",
+            Self::Science => "science",
+            Self::Settings => "settings",
+            Self::System => "system",
+            Self::Utility => "utility",
+            Self::Other => "other",
+        }
+    }
+
+    pub(crate) fn from_id(id: &str) -> Option<Self> {
+        Self::ALL.into_iter().find(|c| c.id() == id)
+    }
+
     fn from_desktop_categories(categories: &str) -> Self {
         let has = |token: &str| categories.split(';').any(|c| c.eq_ignore_ascii_case(token));
 

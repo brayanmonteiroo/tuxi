@@ -4,7 +4,7 @@ use std::collections::BTreeMap;
 
 use chrono::Local;
 use gtk4_layer_shell::{Edge, KeyboardMode, Layer, LayerShell};
-use relm4::gtk::gdk::{self, Key, ModifierType};
+use relm4::gtk::gdk::{Key, ModifierType};
 use relm4::gtk::glib;
 use relm4::gtk::prelude::*;
 use relm4::gtk::{self, EventControllerKey, Orientation};
@@ -16,8 +16,8 @@ use crate::start_menu::{
 };
 
 const PANEL_HEIGHT: i32 = 40;
-/// Folga entre a borda inferior do menu e o topo da barra.
-const MENU_GAP_ABOVE_PANEL: i32 = 10;
+/// Folga entre a borda inferior do menu e o topo da barra (px).
+const MENU_GAP_ABOVE_PANEL: i32 = 2;
 const MENU_WIDTH: i32 = 520;
 const MENU_HEIGHT: i32 = 460;
 
@@ -130,7 +130,9 @@ impl SimpleComponent for PanelModel {
         }
 
         configure_panel_layer_shell(&root);
-        stretch_panel_to_monitor(&root);
+        // Layer-shell com âncoras L/R estica com o output; não fixar largura em px.
+        root.set_size_request(-1, PANEL_HEIGHT);
+        root.set_default_size(-1, PANEL_HEIGHT);
 
         let apps = load_apps_by_category();
         let selected_category = AppCategory::ALL
@@ -153,12 +155,8 @@ impl SimpleComponent for PanelModel {
         let widgets = view_output!();
         model.menu_button = Some(widgets.menu_button.clone());
 
-        rebuild_category_list(
-            &menu.category_list,
-            &model.apps,
-            model.selected_category,
-            sender.clone(),
-        );
+        rebuild_category_list(&menu.category_list, &model.apps, model.selected_category);
+        wire_category_list(&menu.category_list, sender.clone());
         rebuild_app_pane(
             &menu.app_list,
             &model.apps,
@@ -166,6 +164,14 @@ impl SimpleComponent for PanelModel {
             &model.search,
             sender.clone(),
         );
+
+        // Reaplica altura ao mapear (output pode mudar ao fullscreen da VM).
+        {
+            let win = root.clone();
+            root.connect_map(move |_| {
+                win.set_size_request(-1, PANEL_HEIGHT);
+            });
+        }
 
         install_super_shortcut(&root, sender.clone());
         install_menu_escape(&menu.window, sender.clone());
@@ -388,27 +394,11 @@ fn configure_menu_layer_shell(window: &gtk::Window) {
     window.set_anchor(Edge::Right, false);
     window.set_anchor(Edge::Top, false);
     window.set_margin(Edge::Bottom, PANEL_HEIGHT + MENU_GAP_ABOVE_PANEL);
-    window.set_margin(Edge::Left, 8);
+    window.set_margin(Edge::Left, 6);
     window.set_exclusive_zone(-1);
     window.set_keyboard_mode(KeyboardMode::OnDemand);
     window.set_namespace(Some("tuxi-menu"));
     window.set_size_request(MENU_WIDTH, MENU_HEIGHT);
-}
-
-fn stretch_panel_to_monitor(window: &gtk::Window) {
-    let Some(display) = gdk::Display::default() else {
-        return;
-    };
-
-    let width = display
-        .monitors()
-        .item(0)
-        .and_downcast::<gdk::Monitor>()
-        .map(|m| m.geometry().width())
-        .unwrap_or(1280);
-
-    window.set_default_size(width, PANEL_HEIGHT);
-    window.set_size_request(width, PANEL_HEIGHT);
 }
 
 fn show_menu(model: &PanelModel) {
@@ -474,7 +464,6 @@ fn rebuild_category_list(
     list: &gtk::ListBox,
     apps: &BTreeMap<AppCategory, Vec<DesktopApp>>,
     selected: Option<AppCategory>,
-    sender: ComponentSender<PanelModel>,
 ) {
     clear_list(list);
 
@@ -487,6 +476,8 @@ fn rebuild_category_list(
         }
 
         let row = gtk::ListBoxRow::builder().activatable(true).build();
+        // widget_name guarda o id da categoria para row-selected / row-activated.
+        row.set_widget_name(category.id());
         let label = gtk::Label::builder()
             .label(category.label())
             .xalign(0.0)
@@ -495,17 +486,31 @@ fn rebuild_category_list(
             .build();
         row.set_child(Some(&label));
 
-        let row_sender = sender.clone();
-        row.connect_activate(move |_| {
-            row_sender.input(PanelMsg::SelectCategory(category));
-        });
-
         list.append(&row);
 
         if selected == Some(category) {
             list.select_row(Some(&row));
         }
     }
+}
+
+/// Clique/seleção na lista de categorias (activate na row sozinha não era confiável).
+fn wire_category_list(list: &gtk::ListBox, sender: ComponentSender<PanelModel>) {
+    let sender_selected = sender.clone();
+    list.connect_row_selected(move |_list, row| {
+        let Some(row) = row else {
+            return;
+        };
+        if let Some(category) = AppCategory::from_id(&row.widget_name()) {
+            sender_selected.input(PanelMsg::SelectCategory(category));
+        }
+    });
+
+    list.connect_row_activated(move |_list, row| {
+        if let Some(category) = AppCategory::from_id(&row.widget_name()) {
+            sender.input(PanelMsg::SelectCategory(category));
+        }
+    });
 }
 
 fn rebuild_app_pane(
