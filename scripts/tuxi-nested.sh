@@ -85,6 +85,19 @@ if [[ -d "${THEME_SRC}" ]]; then
   cp -a "${THEME_SRC}/." "${NESTED_XDG_DATA}/themes/TUXI/labwc/"
 fi
 
+# App Configurações no menu (Gio) — Exec absoluto para o binário de debug.
+SETTINGS_BIN="${ROOT}/target/debug/tuxi-settings"
+SETTINGS_DESKTOP_SRC="${ROOT}/packaging/applications/org.tuxi.Settings.desktop"
+if [[ -x "${SETTINGS_BIN}" && -f "${SETTINGS_DESKTOP_SRC}" ]]; then
+  mkdir -p "${NESTED_XDG_DATA}/applications"
+  {
+    sed '/^Exec=/d' "${SETTINGS_DESKTOP_SRC}"
+    echo "Exec=${SETTINGS_BIN}"
+  } > "${NESTED_XDG_DATA}/applications/org.tuxi.Settings.desktop"
+else
+  echo "aviso: compile tuxi-settings para aparecer no menu: cargo build -p tuxi-settings" >&2
+fi
+
 HOST_XDG_DATA_DIRS="${XDG_DATA_DIRS:-/usr/local/share:/usr/share}"
 export XDG_DATA_DIRS="${NESTED_XDG_DATA}:${HOST_XDG_DATA_DIRS}"
 # labwc environment file (lido pelo compositor / filhos).

@@ -20,8 +20,8 @@
 }
 
 .tuxi-panel button {
-  background: transparent;
-  border: none;
+  background-color: alpha(@tuxi_fg, 0.08);
+  border: 1px solid alpha(@tuxi_fg, 0.1);
   border-radius: 8px;
   color: @tuxi_fg;
   padding: 4px 12px;
@@ -30,13 +30,20 @@
 }
 
 .tuxi-panel button:hover {
-  background-color: alpha(@tuxi_fg, 0.08);
+  background-color: alpha(@tuxi_fg, 0.14);
+  border-color: alpha(@tuxi_fg, 0.18);
 }
 
 .tuxi-panel button:checked,
 .tuxi-panel button.suggested-action {
   background-color: @tuxi_accent;
+  border-color: alpha(@tuxi_accent, 0.7);
   color: @tuxi_accent_fg;
+}
+
+.tuxi-panel button:checked:hover,
+.tuxi-panel button.suggested-action:hover {
+  background-color: mix(@tuxi_accent, @tuxi_fg, 0.12);
 }
 
 .tuxi-panel-clock {
@@ -69,12 +76,13 @@
   border: 1px solid transparent;
   border-radius: 8px;
   color: @tuxi_fg;
-  padding: 4px 10px;
-  min-height: 36px;
+  padding: 2px 4px;
+  min-height: 40px;
+  min-width: 40px;
 }
 
 .tuxi-task-button image {
-  -gtk-icon-size: 28px;
+  -gtk-icon-size: 36px;
 }
 
 .tuxi-task-button:hover {

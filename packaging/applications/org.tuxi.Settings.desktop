@@ -1,0 +1,16 @@
+[Desktop Entry]
+Version=1.0
+Type=Application
+Name=Configurações
+Name[pt]=Configurações
+Name[pt_BR]=Configurações
+GenericName=System Settings
+Comment=Configurações do sistema TUXI
+Comment[pt]=Configurações do sistema TUXI
+Exec=tuxi-settings
+Icon=preferences-system
+Terminal=false
+Categories=Settings;X-TUXI;
+Keywords=settings;preferences;config;tuxi;display;about;
+StartupNotify=true
+DBusActivatable=false

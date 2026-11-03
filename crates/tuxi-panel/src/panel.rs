@@ -21,7 +21,8 @@ use std::sync::mpsc::Sender;
 
 /// Altura da barra (proporção ~task manager do Plasma; só tamanho, não o visual).
 const PANEL_HEIGHT: i32 = 48;
-const TASK_ICON_PX: i32 = 28;
+/// Ícone da tarefa — preenche o botão (pouco padding à volta).
+const TASK_ICON_PX: i32 = 36;
 /// Folga entre a borda inferior do menu e o topo da barra (px).
 const MENU_GAP_ABOVE_PANEL: i32 = 2;
 const MENU_WIDTH: i32 = 720;
@@ -806,23 +807,13 @@ fn rebuild_task_area(
             task.title
         )));
 
-        let content = gtk::Box::new(Orientation::Horizontal, 6);
-        content.set_valign(gtk::Align::Center);
-
+        // Padrão tipo Fedora/Plasma: só ícone (título fica no tooltip).
         let icon = gtk::Image::new();
         icon.set_pixel_size(TASK_ICON_PX);
         icon.set_size_request(TASK_ICON_PX, TASK_ICON_PX);
+        icon.set_valign(gtk::Align::Center);
         apply_task_icon(&icon, &task.app_id, &task.title);
-
-        let label = gtk::Label::builder()
-            .label(truncate_title(&task.title, 22))
-            .ellipsize(gtk::pango::EllipsizeMode::End)
-            .max_width_chars(18)
-            .build();
-
-        content.append(&icon);
-        content.append(&label);
-        btn.set_child(Some(&content));
+        btn.set_child(Some(&icon));
 
         let id = task.id;
         let sender_click = sender.clone();
@@ -839,17 +830,6 @@ fn rebuild_task_area(
         btn.add_controller(gesture);
 
         area.append(&btn);
-    }
-}
-
-fn truncate_title(title: &str, max_chars: usize) -> String {
-    let count = title.chars().count();
-    if count <= max_chars {
-        title.to_string()
-    } else {
-        let mut s: String = title.chars().take(max_chars.saturating_sub(1)).collect();
-        s.push('…');
-        s
     }
 }
 

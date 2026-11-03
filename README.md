@@ -101,8 +101,9 @@ RUST_LOG=tuxi_panel=debug cargo run -p tuxi-panel
 ## Estrutura
 
 ```text
-crates/tuxi-panel/   # barra inferior + menu iniciar
-docs/                # convenções e ADRs
+crates/tuxi-panel/      # barra inferior + menu iniciar
+crates/tuxi-settings/   # central de configurações
+docs/                   # convenções e ADRs
 ```
 
 ## Apps do ambiente local
@@ -110,11 +111,13 @@ docs/                # convenções e ADRs
 Sim: o menu lista as aplicações instaladas na sessão atual (arquivos
 `.desktop` via FreeDesktop/Gio). No Fedora KDE, você vê os mesmos apps do
 sistema. Em Debian/Arch/openSUSE, a mesma lógica vale — sem fork por distro.
+O app **Configurações** (`tuxi-settings`) aparece via
+`packaging/applications/org.tuxi.Settings.desktop`.
 
 ## Próximos passos
 
-- Taskbar real (janelas abertas via foreign-toplevel Wayland)
+- Rede / Bluetooth / energia / aparência reais no `tuxi-settings`
 - Área de trabalho / ícones no desktop
-- Launcher dedicado e central de configurações (`adw` + CSS TUXI)
+- Launcher dedicado
 - Extrair descoberta de apps para `tuxi-apps`
 - Endurecer sessão `org.tuxi.Session` (já com labwc)

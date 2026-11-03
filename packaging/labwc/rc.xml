@@ -55,4 +55,12 @@
   <mouse>
     <default />
   </mouse>
+
+  <!-- Apps abrem maximizados; força SSD TUXI quando o cliente pede CSD. -->
+  <windowRules>
+    <windowRule identifier="*">
+      <action name="Maximize" />
+    </windowRule>
+    <windowRule identifier="*" serverDecoration="yes" />
+  </windowRules>
 </labwc_config>

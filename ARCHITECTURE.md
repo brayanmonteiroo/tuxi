@@ -53,6 +53,7 @@ Detalhes e justificativa: [docs/decisions/0001-stack.md](docs/decisions/0001-sta
 | Crate | Papel |
 |-------|--------|
 | `tuxi-panel` | Barra inferior + menu iniciar (binário Relm4) |
+| `tuxi-settings` | Central de configurações (Sobre, Telas, placeholders) |
 
 ### Crescimento (quando o código pedir extração)
 
@@ -62,7 +63,6 @@ Detalhes e justificativa: [docs/decisions/0001-stack.md](docs/decisions/0001-sta
 | `tuxi-core` | Tipos/config compartilhados por ≥2 crates | Erros, config, IDs XDG |
 | `tuxi-ui` | Widgets/CSS repetidos entre apps | Tokens, helpers, componentes |
 | `tuxi-launcher` | Busca global além do menu | Launcher dedicado |
-| `tuxi-settings` | Preferências do desktop | Central de configurações |
 | `tuxi-session` | Sessão selecionável no login | `.desktop` Wayland + orquestração |
 
 **Regra:** não criar crates vazios. Extrair quando houver fronteira clara e

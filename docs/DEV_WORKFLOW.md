@@ -49,7 +49,8 @@ O LightDM esconde entradas cujo `TryExec` falha. Com path em `$HOME`, o user
 | Situação | Comando |
 |----------|---------|
 | Começar a trabalhar | `./scripts/tuxi-nested.sh` **uma vez** (deixa a janela aberta) |
-| Mudaste código/CSS | `./scripts/tuxi-reload-panel.sh` (rebuild + só o painel) |
+| Mudaste código/CSS do painel | `./scripts/tuxi-reload-panel.sh` (rebuild + só o painel) |
+| Mudaste `tuxi-settings` | `cargo build -p tuxi-settings` e abre de novo pelo menu |
 | Fechaste a janela labwc | de novo `./scripts/tuxi-nested.sh` |
 
 Não precisas dos dois em loop. Nested = compositor; reload = painel.
@@ -57,12 +58,15 @@ Não precisas dos dois em loop. Nested = compositor; reload = painel.
 ### A) Nested (mesmo compositor do produto)
 
 ```bash
-cargo build -p tuxi-panel
-sudo dnf install -y labwc   # uma vez
+cargo build -p tuxi-panel -p tuxi-settings
+sudo dnf install -y labwc wlr-randr   # uma vez (wlr-randr = página Telas)
 ./scripts/tuxi-nested.sh    # terminal A — fica aberto
-# terminal B, depois de editar:
+# terminal B, depois de editar o painel:
 ./scripts/tuxi-reload-panel.sh
 ```
+
+**Configurações:** app `tuxi-settings` (menu → Configurações). Sobre e Telas
+têm backend; outras secções são placeholder. Telas precisa de `wlr-randr`.
 
 O nested usa `dbus-run-session` (D-Bus próprio) e grava
 `$XDG_RUNTIME_DIR/tuxi-nested-env` para o reload herdar o mesmo bus/Wayland.

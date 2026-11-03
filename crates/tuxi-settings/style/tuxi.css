@@ -1,0 +1,128 @@
+/* TUXI Design System — tokens partilhados com o painel (cópia até haver tuxi-ui). */
+
+@define-color tuxi_bg #16191e;
+@define-color tuxi_bg_elevated #1e232b;
+@define-color tuxi_bg_row #252b34;
+@define-color tuxi_fg #e8eaed;
+@define-color tuxi_fg_muted #9aa0a6;
+@define-color tuxi_accent #3d8bfd;
+@define-color tuxi_accent_fg #ffffff;
+@define-color tuxi_border #343b46;
+@define-color tuxi_danger #e35d6a;
+
+window.tuxi-settings {
+  background-color: @tuxi_bg;
+  color: @tuxi_fg;
+}
+
+.tuxi-settings-sidebar {
+  background-color: @tuxi_bg_elevated;
+  border-right: 1px solid @tuxi_border;
+  min-width: 220px;
+}
+
+.tuxi-settings-sidebar list {
+  background: transparent;
+}
+
+.tuxi-settings-sidebar row {
+  border-radius: 8px;
+  margin: 2px 8px;
+  padding: 4px;
+}
+
+.tuxi-settings-sidebar row:selected {
+  background-color: alpha(@tuxi_accent, 0.28);
+  color: @tuxi_fg;
+}
+
+.tuxi-settings-content {
+  background-color: @tuxi_bg;
+}
+
+.tuxi-settings-card {
+  background-color: @tuxi_bg_elevated;
+  border: 1px solid @tuxi_border;
+  border-radius: 12px;
+  padding: 14px;
+  margin: 6px 0;
+}
+
+.tuxi-settings-muted {
+  color: @tuxi_fg_muted;
+}
+
+.tuxi-settings-brand {
+  font-size: 1.4em;
+  font-weight: 700;
+  color: @tuxi_accent;
+}
+
+.tuxi-settings-search {
+  margin: 8px 10px;
+}
+
+/* Header só no painel de conteúdo — sem botões CSD. */
+.tuxi-settings headerbar {
+  background-color: @tuxi_bg;
+  color: @tuxi_fg;
+  border-bottom: 1px solid @tuxi_border;
+  box-shadow: none;
+}
+
+.tuxi-settings-button {
+  background-color: @tuxi_bg_row;
+  border: 1px solid @tuxi_border;
+  border-radius: 8px;
+  color: @tuxi_fg;
+  padding: 6px 14px;
+  min-height: 32px;
+}
+
+.tuxi-settings-button:hover {
+  background-color: alpha(@tuxi_fg, 0.12);
+  border-color: alpha(@tuxi_accent, 0.45);
+}
+
+.tuxi-settings-button.suggested-action {
+  background-color: @tuxi_accent;
+  border-color: alpha(@tuxi_accent, 0.8);
+  color: @tuxi_accent_fg;
+}
+
+.tuxi-settings-button.suggested-action:hover {
+  background-color: mix(@tuxi_accent, @tuxi_fg, 0.1);
+}
+
+/* Botões de janela — espelho do themerc SSD TUXI (28px, hover pílula). */
+.tuxi-window-controls {
+  margin-end: 4px;
+}
+
+.tuxi-winbtn {
+  min-width: 28px;
+  min-height: 28px;
+  padding: 0;
+  border: none;
+  border-radius: 8px;
+  background-color: transparent;
+  box-shadow: none;
+  color: #9aa0a6;
+}
+
+.tuxi-winbtn:hover {
+  background-color: alpha(#e8eaed, 0.09);
+}
+
+.tuxi-winbtn-close {
+  color: #e35d6a;
+}
+
+.tuxi-winbtn-close:hover {
+  background-color: alpha(#e35d6a, 0.28);
+  color: #ff8a94;
+}
+
+.tuxi-winbtn image {
+  -gtk-icon-size: 16px;
+}

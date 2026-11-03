@@ -1,6 +1,6 @@
 [workspace]
 resolver = "2"
-members = ["crates/tuxi-panel"]
+members = ["crates/tuxi-panel", "crates/tuxi-settings"]
 
 [workspace.package]
 edition = "2021"

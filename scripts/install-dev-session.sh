@@ -39,15 +39,35 @@ THEME_SRC="${REPO_ROOT}/packaging/themes/TUXI/labwc"
 SHARE_THEME="/usr/local/share/themes/TUXI/labwc"
 USER_THEME="${TARGET_HOME}/.local/share/themes/TUXI/labwc"
 
+SETTINGS_DESKTOP_SRC="${REPO_ROOT}/packaging/applications/org.tuxi.Settings.desktop"
+SETTINGS_BIN_SRC="${REPO_ROOT}/target/release/tuxi-settings"
+if [[ ! -x "${SETTINGS_BIN_SRC}" ]]; then
+  SETTINGS_BIN_SRC="${REPO_ROOT}/target/debug/tuxi-settings"
+fi
+
 install -d /usr/local/bin \
   /usr/local/share/tuxi/labwc \
   /usr/local/share/themes/TUXI/labwc \
+  /usr/local/share/applications \
   /usr/share/wayland-sessions \
   /usr/share/xsessions \
   /usr/local/share/wayland-sessions \
   /usr/local/share/xsessions
 
 install -m 755 "${SCRIPT_DIR}/tuxi-labwc-session" "${SESSION_BIN}"
+
+if [[ -x "${SETTINGS_BIN_SRC}" && -f "${SETTINGS_DESKTOP_SRC}" ]]; then
+  install -m 755 "${SETTINGS_BIN_SRC}" /usr/local/bin/tuxi-settings
+  install -m 644 "${SETTINGS_DESKTOP_SRC}" /usr/local/share/applications/org.tuxi.Settings.desktop
+  install -d "${TARGET_HOME}/.local/share/applications"
+  install -m 644 "${SETTINGS_DESKTOP_SRC}" \
+    "${TARGET_HOME}/.local/share/applications/org.tuxi.Settings.desktop"
+  chown "${TARGET_USER}:${TARGET_USER}" \
+    "${TARGET_HOME}/.local/share/applications/org.tuxi.Settings.desktop"
+else
+  echo "aviso: tuxi-settings não compilado — salte app Configurações." >&2
+  echo "  cargo build -p tuxi-settings && sudo $0" >&2
+fi
 
 # Template labwc oficial (labwc -C).
 if [[ ! -f "${PACKAGING_LABWC}/rc.xml" ]]; then
@@ -123,6 +143,7 @@ echo "  Exec/TryExec: ${SESSION_BIN}"
 echo "  labwc share:  ${SHARE_LABWC}"
 echo "  labwc user:   ${USER_LABWC}"
 echo "  tema SSD:     ${SHARE_THEME}"
+echo "  settings:     /usr/local/bin/tuxi-settings"
 echo "  .desktop:     /usr/share/xsessions/tuxi-labwc.desktop"
 echo "  .desktop:     /usr/share/wayland-sessions/tuxi-labwc.desktop"
 echo
