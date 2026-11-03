@@ -1,0 +1,41 @@
+#!/usr/bin/env bash
+# Sessão de desenvolvimento: labwc + painel TUXI.
+# Uso: instalado em ~/.local/bin ou chamado pelo .desktop Wayland.
+
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+REPO_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
+
+PANEL_CANDIDATES=(
+  "${TUXI_PANEL:-}"
+  "${REPO_ROOT}/target/debug/tuxi-panel"
+  "${HOME}/tuxi/target/debug/tuxi-panel"
+  "${HOME}/.cargo/bin/tuxi-panel"
+)
+
+PANEL=""
+for candidate in "${PANEL_CANDIDATES[@]}"; do
+  if [[ -n "${candidate}" && -x "${candidate}" ]]; then
+    PANEL="${candidate}"
+    break
+  fi
+done
+
+if [[ -z "${PANEL}" ]]; then
+  echo "tuxi-panel não encontrado. Compile com: cargo build -p tuxi-panel" >&2
+  exit 1
+fi
+
+if ! command -v labwc >/dev/null 2>&1; then
+  echo "labwc não encontrado. Instale com: sudo dnf install labwc" >&2
+  exit 1
+fi
+
+# Sobe o painel logo após o compositor iniciar.
+(
+  sleep 0.4
+  exec "${PANEL}"
+) &
+
+exec labwc
