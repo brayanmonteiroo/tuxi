@@ -1,12 +1,11 @@
 #!/usr/bin/env bash
-# Desenvolvimento NESTED: labwc + painel numa janela (X11/Wayland do host).
+# Desenvolvimento NESTED: labwc + painel numa janela no Fedora KDE (ou XFCE).
 #
-# Uso (host KDE/XFCE ou dentro da VM no XFCE):
-#   cd ~/tuxi && cargo build -p tuxi-panel
+#   cargo build -p tuxi-panel
 #   ./scripts/tuxi-nested.sh
 #
-# NÃO uses isto como “desktop de verdade”. Para fullscreen no login:
-#   sudo ./scripts/install-dev-session.sh && sessão "TUXI labwc"
+# Usa `labwc -s` para o compositor exportar o WAYLAND_DISPLAY certo ao painel.
+# Config isolada em /tmp — não usa ~/.config/labwc (autostart da sessão VM).
 
 set -euo pipefail
 
@@ -24,34 +23,26 @@ if ! command -v labwc >/dev/null 2>&1; then
   exit 1
 fi
 
-export TUXI_ALLOW_NESTED=1
+CFG="$(mktemp -d /tmp/tuxi-nested-XXXXXX)"
+cleanup() { rm -rf "${CFG}"; }
+trap cleanup EXIT
 
-# Em sessão Wayland do host, labwc aninha via XWayland ou backend próprio.
-# DISPLAY/WAYLAND_DISPLAY do host ficam definidos — por isso o allow nested.
-echo "Abrindo labwc nested + tuxi-panel (janela)…"
+# Autostart vazio: o painel sobe só via -s (com env Wayland do labwc).
+cat > "${CFG}/autostart" <<'EOF'
+#!/usr/bin/env bash
+# nested: sem autostart extra
+true
+EOF
+chmod +x "${CFG}/autostart"
+
+# rc.xml mínimo opcional — labwc usa defaults se faltar.
+# Ambiente nested em compositor Wayland do host:
+export TUXI_ALLOW_NESTED=1
+export WLR_BACKENDS="${WLR_BACKENDS:-wayland}"
+
+echo "Abrindo labwc nested + tuxi-panel…"
+echo "Config temporária: ${CFG}"
 echo "Fecha a janela do labwc para terminar."
 
-(
-  # Espera o compositor nested criar o display interno.
-  for _ in $(seq 1 50); do
-    if [[ -n "${WAYLAND_DISPLAY:-}" ]] || [[ -S "${XDG_RUNTIME_DIR:-/run/user/$(id -u)}/wayland-1" ]]; then
-      break
-    fi
-    sleep 0.1
-  done
-  sleep 0.3
-  # Preferir o wayland do labwc nested (wayland-1, wayland-2, …).
-  if [[ -z "${TUXI_NESTED_DISPLAY:-}" ]]; then
-    for sock in "${XDG_RUNTIME_DIR}"/wayland-*; do
-      base="$(basename "${sock}")"
-      if [[ "${base}" != "wayland-0" ]]; then
-        export WAYLAND_DISPLAY="${base}"
-      fi
-    done
-  else
-    export WAYLAND_DISPLAY="${TUXI_NESTED_DISPLAY}"
-  fi
-  exec "${PANEL}"
-) &
-
-exec labwc
+# -s corre o comando DEPOIS do socket Wayland existir (env já corrigido).
+exec labwc -C "${CFG}" -s "${PANEL}"
