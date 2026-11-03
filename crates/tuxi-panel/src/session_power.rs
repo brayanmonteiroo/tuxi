@@ -29,9 +29,7 @@ impl PowerAction {
         match self {
             Self::Logout => logout(),
             Self::Reboot => run_loginctl(&["reboot"]).or_else(|_| run_systemctl(&["reboot"])),
-            Self::PowerOff => {
-                run_loginctl(&["poweroff"]).or_else(|_| run_systemctl(&["poweroff"]))
-            }
+            Self::PowerOff => run_loginctl(&["poweroff"]).or_else(|_| run_systemctl(&["poweroff"])),
         }
     }
 }
@@ -72,5 +70,17 @@ fn run_systemctl(args: &[&str]) -> Result<()> {
         Ok(())
     } else {
         bail!("systemctl {:?} saiu com {status}", args);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn power_action_labels() {
+        assert_eq!(PowerAction::Logout.label(), "Sair");
+        assert_eq!(PowerAction::Reboot.label(), "Reiniciar");
+        assert_eq!(PowerAction::PowerOff.label(), "Desligar");
     }
 }

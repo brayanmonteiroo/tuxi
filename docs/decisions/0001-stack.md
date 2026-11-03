@@ -26,7 +26,7 @@ UX do GNOME Activities como produto.
 | Estilo | GTK CSS + tokens TUXI |
 | Painel Wayland | gtk4-layer-shell |
 | Apps FreeDesktop | Gio (`AppInfo`) |
-| Compositor | Adiado (rodar no compositor do host/VM) |
+| Compositor | labwc (ver [0002-compositor-labwc.md](0002-compositor-labwc.md)) |
 
 **Libadwaita** é infraestrutura de componentes, não a identidade do produto.
 A cara do TUXI vem do CSS/design system (padrão conceitual Ubuntu/Yaru).
@@ -48,8 +48,8 @@ A cara do TUXI vem do CSS/design system (padrão conceitual Ubuntu/Yaru).
 - Libadwaita carrega stylesheet Adwaita; precisamos sobrescrever com cuidado
   e sem lutar contra APIs não suportadas (novo ADR se necessário).
 - Layer-shell limita onde o painel pode ser testado (não GNOME Wayland).
-- Compositor definitivo ainda não escolhido; integração profunda (workspaces,
-  efeitos) exigirá backend específico depois.
+- Compositor oficial é labwc; integração profunda (workspaces, efeitos) evolui
+  na família wlroots — ver ADR 0002.
 
 ## Referências
 

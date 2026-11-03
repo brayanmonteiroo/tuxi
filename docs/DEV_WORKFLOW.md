@@ -1,97 +1,87 @@
 # Como desenvolver um Desktop Environment
 
+## Compositor do produto
+
+O compositor **oficial** do TUXI é **labwc** ([ADR 0002](decisions/0002-compositor-labwc.md)).
+Nested e sessão de login usam o mesmo binário e a mesma família de config
+(`packaging/labwc/`, `labwc -C`).
+
+Override: `TUXI_LABWC_CONFIG=/caminho/para/dir` (diretório com `rc.xml`, etc.).
+
 ## O que Cosmic, GNOME, KDE e Cinnamon fazem
 
 ### COSMIC (System76)
 
 - Componentes em Rust; orquestração com `just`.
-- **Dia a dia:** compositor em modo aninhado (X11/Winit) — janela dentro do
-  desktop atual, igual ao “wlroots - X11” que viste.
+- **Dia a dia:** compositor em modo aninhado — janela dentro do desktop atual.
 - **Integração:** `systemd-sysext` ou sessão instalada, sem estragar a distro base.
-- Referência: [cosmic-epoch development](https://deepwiki.com/pop-os/cosmic-epoch/3-development-and-testing),
-  [cosmic-comp](https://github.com/pop-os/cosmic-comp).
 
 ### GNOME
 
-- Shell (JS) + Mutter; apps GTK/Libadwaita.
-- Desenvolvedores usam **JHBuild / Toolbox / VM**, e extensões no GNOME do host.
-- Testes pesados de shell: sessão nested (`mutter --nested`) ou VM.
-- Quase ninguém “nasce” o DE só em TTY forever — nested + CI + VM.
+- Shell (JS) + Mutter; nested / VM / Toolbox.
 
 ### KDE Plasma
 
-- Plasma + KWin; apps Qt.
-- Iteração rápida: rodar **plasmashell / kwin_wayland --nested** no Plasma já
-  instalado, ou `kde-builder` em prefixo próprio (`~/kde`).
-- Sessão completa: VM ou segunda sessão no login.
+- Plasma + KWin; nested ou `kde-builder` em prefixo próprio.
 
 ### Cinnamon
 
-- Fork histórico do GNOME Shell; GJS + Muffin.
-- Desenvolvimento tipicamente **na própria Mint/Cinnamon** (host ou VM):
-  altera applet/extensão, reinicia o shell (`cinnamon --replace` em X11).
+- Muffin + shell JS; tipicamente na própria sessão Mint.
 
-## Padrão comum (e o que o TUXI deve copiar)
+## Padrão TUXI
 
 | Fase | Onde | Para quê |
 |------|------|----------|
-| 1. Componente | Host ou nested | Painel, CSS, menu — ciclo rápido |
-| 2. Sessão | Login gráfico **TUXI labwc** | Sensação de DE, power, layout |
+| 1. Componente | Nested labwc (ou painel no host) | Painel, CSS, menu — ciclo rápido |
+| 2. Sessão | Login **TUXI labwc** | Sensação de DE, power, layout |
 | 3. Integração | VM Fedora dedicada | Sem estragar o KDE do host |
-| 4. “Distro com TUXI” | Depois | Quando houver terminal, settings, sessão estável |
-
-Não precisas de “Fedora só com TUXI” no dia 1. Precisas de:
-
-1. **Sessão no login** (sem TTY) — agora.
-2. **Terminal + painel** dentro dessa sessão — para desenvolver *lá dentro*.
-3. Nested no host só para CSS/UI pontual.
+| 4. Distro | Depois | Quando sessão e settings estabilizarem |
 
 ## Por que a sessão sumia no XFCE
 
-O LightDM esconde entradas cujo `TryExec` falha. Com
-`TryExec=/home/brayan/.local/bin/...`, o user `lightdm` **não lê** o teu home
-(permissão 700) → a sessão não aparece. O instalador coloca o script em
-`/usr/local/bin/tuxi-labwc-session`.
+O LightDM esconde entradas cujo `TryExec` falha. Com path em `$HOME`, o user
+`lightdm` não lê o home (700). O instalador usa `/usr/local/bin/tuxi-labwc-session`.
 
-## Fluxo recomendado agora
+## Fluxo recomendado
 
-### A) Nested (rápido — o que “faltava”)
-
-No **host** (KDE) ou no XFCE da VM, sem logout:
+### A) Nested (mesmo compositor do produto)
 
 ```bash
-cd ~/tuxi   # ou ~/dev/github/tuxi no host
 cargo build -p tuxi-panel
 sudo dnf install -y labwc   # uma vez
 ./scripts/tuxi-nested.sh
 ```
 
-Abre uma janela `labwc` com a barra TUXI. Ideal para CSS, menu, botões.
-Fecha a janela = fim do teste.
-
-Para iterar **sem fechar** o nested:
+Iterar sem fechar o nested:
 
 ```bash
 ./scripts/tuxi-reload-panel.sh
 ```
 
-O nested grava `$XDG_RUNTIME_DIR/tuxi-nested-display`. No KDE o host
-costuma ser `wayland-1` e o nested `wayland-0` — o reload **não** pode
-assumir que nested ≠ `wayland-0`.
+O nested grava `$XDG_RUNTIME_DIR/tuxi-nested-display`. No KDE o host costuma
+ser `wayland-1` e o nested `wayland-0` — o reload usa esse ficheiro (não assume
+que nested ≠ `wayland-0`).
 
-Também podes iterar **só o painel** no Plasma (layer-shell), sem labwc:
+Só o painel no Plasma (compat): `cargo run -p tuxi-panel`.
 
-```bash
-cargo run -p tuxi-panel
-```
-
-### B) Sessão no login (integração)
+### B) Sessão no login
 
 ```bash
-cd ~/tuxi && git pull && cargo build -p tuxi-panel
+git pull && cargo build -p tuxi-panel
 sudo ./scripts/install-dev-session.sh
 sudo systemctl restart lightdm
 ```
 
-Na tela de login: escolhe **TUXI labwc** uma vez. Depois **Reiniciar** no menu
-TUXI deve voltar a essa sessão (LightDM lembra).
+Escolhe **TUXI labwc** uma vez no greeter. O instalador sincroniza
+`~/.config/tuxi/labwc` a partir de `packaging/labwc/`.
+
+## Testes
+
+**Fase 1 (agora):** lógica pura
+
+```bash
+cargo test -p tuxi-panel
+```
+
+**Fase 2 (futuro):** smoke nested manual / script; testes GTK/Relm4 quando a
+UI estabilizar. Ver [PERFORMANCE.md](PERFORMANCE.md) para orçamentos.

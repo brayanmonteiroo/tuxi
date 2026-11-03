@@ -18,11 +18,13 @@ Cinnamon ou KDE.
 ```text
 Experiência TUXI     painel, menu, launcher, settings, widgets, CSS
 Serviços desktop     D-Bus, atalhos, sessão, notificações (futuro)
-Infra gráfica        compositor Wayland (reutilizado; escolha adiada)
+Infra gráfica        labwc (compositor oficial) sobre wlroots / Wayland
 Linux                kernel, DRM/KMS, PipeWire, systemd, portals
 ```
 
-Nossa responsabilidade principal está nas duas primeiras camadas.
+Nossa responsabilidade principal está nas duas primeiras camadas. O compositor
+é **reutilizado** (labwc), com config de sessão TUXI em `packaging/labwc/`.
+Decisão: [docs/decisions/0002-compositor-labwc.md](docs/decisions/0002-compositor-labwc.md).
 
 ## O que é nosso vs reutilizado
 
@@ -30,14 +32,15 @@ Nossa responsabilidade principal está nas duas primeiras camadas.
 |-------|-------------|
 | Painel, menu iniciar, identidade CSS | GTK 4, Libadwaita (componentes) |
 | Design system TUXI | Gio / FreeDesktop (apps, categorias) |
-| Futuros settings / widgets / sessão TUXI | Compositor Wayland existente (host/VM) |
-| | PipeWire, UPower, BlueZ, xdg-desktop-portal |
+| Config/sessão labwc TUXI (`-C`) | **labwc** (compositor oficial) |
+| Futuros settings / widgets / sessão TUXI | PipeWire, UPower, BlueZ, xdg-desktop-portal |
 
 ## Stack atual (bootstrap)
 
 - **Linguagem:** Rust
 - **UI:** GTK 4 + Libadwaita + Relm4 0.11 + gtk4-rs
 - **Shell Wayland:** gtk4-layer-shell (painel)
+- **Compositor:** labwc (sessão e nested)
 - **Estilo:** GTK CSS (`tuxi.css`) sobre Adwaita
 - **Descoberta de apps:** `gio::AppInfo` (Desktop Entry Spec)
 
@@ -93,7 +96,7 @@ equivalente do compositor) — isso é da sessão/compositor, não da distro.
 
 ## Fora de escopo (bootstrap)
 
-- Compositor próprio / escolha definitiva Mutter vs Smithay
+- Compositor próprio (Smithay) ou sessão baseada em Mutter/KWin
 - Distro, ISO, pacotes RPM/DEB, CI
 - Fork de GNOME Shell, Cinnamon ou KWin
 - Biblioteca visual completa do zero (usamos Libadwaita + CSS)

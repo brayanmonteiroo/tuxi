@@ -15,6 +15,7 @@ devem alinhá-las.
 | Relm4 | [Relm4](https://relm4.org/) |
 | FreeDesktop | [specifications.freedesktop.org](https://specifications.freedesktop.org/) |
 | gtk4-layer-shell | [wmww/gtk4-layer-shell](https://github.com/wmww/gtk4-layer-shell) e protocolo `wlr-layer-shell` |
+| labwc | [labwc.github.io](https://labwc.github.io/) — compositor oficial ([ADR 0002](decisions/0002-compositor-labwc.md)) |
 
 O GNOME HIG é **referência**, não lei de UX do TUXI. Nossa experiência é
 desktop tradicional; a identidade visual é o Design System TUXI via CSS.
@@ -37,8 +38,10 @@ desktop tradicional; a identidade visual é o Design System TUXI via CSS.
    para logs — não espalhar `println!` / `eprintln!` de diagnóstico.
 7. **Comentários** explicam o *porquê* específico do TUXI; o *como* deve
    seguir o padrão da documentação da biblioteca.
-8. **Qualidade:** `cargo fmt` e `cargo clippy -- -D warnings` antes de
-   considerar uma mudança pronta.
+8. **Qualidade:** `cargo fmt`, `cargo clippy -- -D warnings` e
+   `cargo test -p tuxi-panel` antes de considerar uma mudança pronta.
+9. **Performance:** orçamentos e spans em [PERFORMANCE.md](PERFORMANCE.md);
+   medir antes de otimizar.
 
 ## Módulos no `tuxi-panel` (bootstrap)
 

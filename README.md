@@ -4,14 +4,16 @@ Desktop Environment tradicional para Linux (painel + menu iniciar), com stack
 **Rust · GTK 4 · Libadwaita · Relm4** e identidade visual própria via CSS.
 
 Não é uma distribuição. Não é um fork do GNOME, Cinnamon ou KDE. Reutilizamos
-infraestrutura (Libadwaita, FreeDesktop, layer-shell, compositor do host) e
-construímos a experiência TUXI.
+infraestrutura (Libadwaita, FreeDesktop, layer-shell, **labwc**) e construímos
+a experiência TUXI.
 
 ## Documentação do projeto
 
 - [ARCHITECTURE.md](ARCHITECTURE.md) — camadas, mapa de crates, escopo
 - [docs/CONVENTIONS.md](docs/CONVENTIONS.md) — docs oficiais e regras de engenharia
+- [docs/PERFORMANCE.md](docs/PERFORMANCE.md) — orçamentos e como medir
 - [docs/decisions/0001-stack.md](docs/decisions/0001-stack.md) — ADR da stack
+- [docs/decisions/0002-compositor-labwc.md](docs/decisions/0002-compositor-labwc.md) — compositor oficial
 
 ## Fontes canônicas (seguir como no Laravel)
 
@@ -42,9 +44,12 @@ sudo dnf install gtk4-devel libadwaita-devel gtk4-layer-shell gtk4-layer-shell-d
 cargo run -p tuxi-panel
 ```
 
-**Compositor:** o painel usa `wlr-layer-shell` via gtk4-layer-shell. Funciona em
-**KDE Plasma Wayland**, Sway, labwc, Hyprland, etc. **Não** funciona no
-GNOME Shell Wayland (protocolo não suportado).
+**Compositor oficial:** [labwc](https://labwc.github.io/) (ADR 0002). Sessão e
+nested usam config TUXI (`packaging/labwc`, `labwc -C`). O painel usa
+`wlr-layer-shell`. Compat oportunista em outros compositors com o protocolo
+(ex. KWin); **não** no GNOME Shell Wayland.
+
+Override da config: `TUXI_LABWC_CONFIG=/caminho/para/dir`.
 
 ### Sessão no login (LightDM / XFCE)
 
@@ -77,6 +82,7 @@ Só o painel no Plasma (sem labwc): `cargo run -p tuxi-panel`.
 ```bash
 cargo fmt
 cargo clippy -p tuxi-panel -- -D warnings
+cargo test -p tuxi-panel
 ```
 
 ### Super / menu iniciar
@@ -111,5 +117,4 @@ sistema. Em Debian/Arch/openSUSE, a mesma lógica vale — sem fork por distro.
 - Área de trabalho / ícones no desktop
 - Launcher dedicado e central de configurações (`adw` + CSS TUXI)
 - Extrair descoberta de apps para `tuxi-apps`
-- Sessão Wayland selecionável (`org.tuxi.Session`)
-- Avaliar compositor (Mutter / Smithay) via backend abstrato
+- Endurecer sessão `org.tuxi.Session` (já com labwc)

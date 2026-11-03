@@ -1,17 +1,28 @@
 #!/usr/bin/env bash
-# Sessão de desenvolvimento: labwc + painel TUXI.
+# Sessão de produto/desenvolvimento: labwc + painel TUXI.
+#
+# Config: labwc -C (nunca ~/.config/labwc genérico).
+#   1) TUXI_LABWC_CONFIG
+#   2) $XDG_CONFIG_HOME/tuxi/labwc  (ou ~/.config/tuxi/labwc)
 #
 # Instalação tipica (sudo): /usr/local/bin/tuxi-labwc-session
-# Painel: $HOME/tuxi/target/debug/tuxi-panel
+# Template: packaging/labwc ou /usr/local/share/tuxi/labwc
 #
-# LightDM precisa do TryExec em path mundial (/usr/local/bin), não em ~/.local —
-# o usuário "lightdm" não lê /home/<user> (permissão 700).
+# LightDM: TryExec em /usr/local (home 700 esconde a sessão).
 
 set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+REPO_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
+XDG_CONFIG_HOME="${XDG_CONFIG_HOME:-${HOME}/.config}"
+DEFAULT_CFG="${XDG_CONFIG_HOME}/tuxi/labwc"
+SHARE_CFG="/usr/local/share/tuxi/labwc"
+PACKAGING_CFG="${REPO_ROOT}/packaging/labwc"
 
 PANEL_CANDIDATES=(
   "${TUXI_PANEL:-}"
   "${HOME}/tuxi/target/debug/tuxi-panel"
+  "${HOME}/dev/github/tuxi/target/debug/tuxi-panel"
   "${HOME}/.cargo/bin/tuxi-panel"
   "/usr/local/bin/tuxi-panel"
 )
@@ -24,45 +35,63 @@ for candidate in "${PANEL_CANDIDATES[@]}"; do
   fi
 done
 
-if [[ -z "${PANEL}" ]]; then
-  echo "tuxi-panel não encontrado em ${HOME}/tuxi/target/debug/tuxi-panel" >&2
-  echo "Compile com: cd ~/tuxi && cargo build -p tuxi-panel" >&2
-  # Ainda sobe o labwc para não ficar em loop de login; sem painel.
-  PANEL=""
-fi
-
 if ! command -v labwc >/dev/null 2>&1; then
   echo "labwc não encontrado. sudo dnf install labwc" >&2
   exit 1
 fi
 
-# Autostart mínimo: painel + terminal (para desenvolver dentro da sessão).
-mkdir -p "${HOME}/.config/labwc"
-AUTOSTART="${HOME}/.config/labwc/autostart"
-if [[ ! -f "${AUTOSTART}" ]]; then
-  cat > "${AUTOSTART}" <<'EOF'
-#!/usr/bin/env bash
-# Gerado pelo TUXI — edite à vontade.
-EOF
-  chmod +x "${AUTOSTART}"
+CFG="${TUXI_LABWC_CONFIG:-${DEFAULT_CFG}}"
+
+sync_labwc_template() {
+  local dest="$1"
+  local src=""
+  if [[ -f "${PACKAGING_CFG}/rc.xml" ]]; then
+    src="${PACKAGING_CFG}"
+  elif [[ -f "${SHARE_CFG}/rc.xml" ]]; then
+    src="${SHARE_CFG}"
+  else
+    echo "Template labwc TUXI não encontrado (${PACKAGING_CFG} ou ${SHARE_CFG})" >&2
+    exit 1
+  fi
+  mkdir -p "${dest}"
+  install -m 644 "${src}/rc.xml" "${dest}/rc.xml"
+  install -m 644 "${src}/menu.xml" "${dest}/menu.xml"
+  if [[ -f "${src}/environment" ]]; then
+    install -m 644 "${src}/environment" "${dest}/environment"
+  fi
+  # autostart: preservar customizações do user; criar se faltar.
+  if [[ ! -f "${dest}/autostart" ]]; then
+    install -m 755 "${src}/autostart" "${dest}/autostart"
+  fi
+}
+
+if [[ ! -f "${CFG}/rc.xml" ]]; then
+  sync_labwc_template "${CFG}"
 fi
 
-# Garante linhas do painel/terminal no autostart (idempotente).
+chmod +x "${CFG}/autostart" 2>/dev/null || true
+
 ensure_line() {
-  local line="$1"
-  grep -Fqx "${line}" "${AUTOSTART}" 2>/dev/null || echo "${line}" >> "${AUTOSTART}"
+  local file="$1"
+  local line="$2"
+  grep -Fqx "${line}" "${file}" 2>/dev/null || echo "${line}" >> "${file}"
 }
 
 if [[ -n "${PANEL}" ]]; then
-  ensure_line "${PANEL} &"
+  ensure_line "${CFG}/autostart" "${PANEL} &"
+else
+  echo "aviso: tuxi-panel não encontrado; labwc sobe sem painel" >&2
 fi
 
-# Terminal se existir (desenvolvimento dentro do TUXI).
-for term in xfce4-terminal foot kitty alacritty gnome-terminal; do
-  if command -v "${term}" >/dev/null 2>&1; then
-    ensure_line "${term} &"
-    break
-  fi
-done
+# Terminal só se TUXI_SESSION_DEV=1 (desenvolvimento dentro da sessão).
+if [[ "${TUXI_SESSION_DEV:-0}" == "1" ]]; then
+  for term in xfce4-terminal foot kitty alacritty gnome-terminal; do
+    if command -v "${term}" >/dev/null 2>&1; then
+      ensure_line "${CFG}/autostart" "${term} &"
+      break
+    fi
+  done
+fi
 
-exec labwc
+export TUXI_ALLOW_NESTED="${TUXI_ALLOW_NESTED:-0}"
+exec labwc -C "${CFG}"

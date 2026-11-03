@@ -30,14 +30,39 @@ else
 fi
 
 SESSION_BIN="/usr/local/bin/tuxi-labwc-session"
+SHARE_LABWC="/usr/local/share/tuxi/labwc"
+REPO_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
+PACKAGING_LABWC="${REPO_ROOT}/packaging/labwc"
+USER_LABWC="${TARGET_HOME}/.config/tuxi/labwc"
 
 install -d /usr/local/bin \
+  /usr/local/share/tuxi/labwc \
   /usr/share/wayland-sessions \
   /usr/share/xsessions \
   /usr/local/share/wayland-sessions \
   /usr/local/share/xsessions
 
 install -m 755 "${SCRIPT_DIR}/tuxi-labwc-session" "${SESSION_BIN}"
+
+# Template labwc oficial (labwc -C).
+if [[ ! -f "${PACKAGING_LABWC}/rc.xml" ]]; then
+  echo "Falta ${PACKAGING_LABWC}/rc.xml" >&2
+  exit 1
+fi
+install -m 644 "${PACKAGING_LABWC}/rc.xml" "${SHARE_LABWC}/rc.xml"
+install -m 644 "${PACKAGING_LABWC}/menu.xml" "${SHARE_LABWC}/menu.xml"
+install -m 644 "${PACKAGING_LABWC}/environment" "${SHARE_LABWC}/environment"
+install -m 755 "${PACKAGING_LABWC}/autostart" "${SHARE_LABWC}/autostart"
+
+# Cópia no home do developer (sessão usa ~/.config/tuxi/labwc).
+install -d "${USER_LABWC}"
+install -m 644 "${PACKAGING_LABWC}/rc.xml" "${USER_LABWC}/rc.xml"
+install -m 644 "${PACKAGING_LABWC}/menu.xml" "${USER_LABWC}/menu.xml"
+install -m 644 "${PACKAGING_LABWC}/environment" "${USER_LABWC}/environment"
+if [[ ! -f "${USER_LABWC}/autostart" ]]; then
+  install -m 755 "${PACKAGING_LABWC}/autostart" "${USER_LABWC}/autostart"
+fi
+chown -R "${TARGET_USER}:${TARGET_USER}" "${TARGET_HOME}/.config/tuxi"
 
 desktop_body() {
   cat <<EOF
@@ -80,8 +105,12 @@ fi
 
 echo "OK — sessão instalada para LightDM."
 echo "  Exec/TryExec: ${SESSION_BIN}"
+echo "  labwc share:  ${SHARE_LABWC}"
+echo "  labwc user:   ${USER_LABWC}"
 echo "  .desktop:     /usr/share/xsessions/tuxi-labwc.desktop"
 echo "  .desktop:     /usr/share/wayland-sessions/tuxi-labwc.desktop"
+echo
+echo "Override opcional: TUXI_LABWC_CONFIG=/caminho/para/dir"
 echo
 echo "Confira:"
 echo "  ls -la ${SESSION_BIN}"
@@ -92,3 +121,4 @@ echo "  sudo systemctl restart lightdm"
 echo
 echo "Na tela de login escolha \"TUXI labwc\" (uma vez). O LightDM lembra."
 echo "Painel precisa existir:  sudo -u ${TARGET_USER} bash -lc 'cd ~/tuxi && cargo build -p tuxi-panel'"
+echo "Terminal na sessão: TUXI_SESSION_DEV=1 (ou edite autostart em ${USER_LABWC})"

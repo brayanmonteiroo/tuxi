@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Menu de emergência do labwc — NÃO é o menu iniciar TUXI. -->
+<openbox_menu>
+  <menu id="root-menu" label="labwc (não é TUXI)">
+    <item label="Sair da sessão labwc">
+      <action name="Exit" />
+    </item>
+  </menu>
+</openbox_menu>

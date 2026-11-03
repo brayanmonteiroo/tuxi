@@ -1,0 +1,5 @@
+#!/usr/bin/env bash
+# Autostart labwc da sessão TUXI.
+# A sessão (tuxi-labwc-session) e o nested injetam o painel; este ficheiro
+# fica como gancho vazio versionado. Não adicionar menu/DE aqui.
+true

@@ -1,0 +1,3 @@
+# Ambiente da sessão labwc TUXI (labwc lê "environment" no -C).
+# XDG_CURRENT_DESKTOP ajuda portals e apps FreeDesktop.
+XDG_CURRENT_DESKTOP=TUXI:labwc

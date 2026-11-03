@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Config labwc da sessão TUXI (fonte: packaging/labwc).
+  Baseado no exemplo mínimo oficial; opções completas em rc.xml.all do labwc.
+-->
+<labwc_config>
+  <keyboard>
+    <default />
+    <keybind key="A-F4">
+      <action name="Close" />
+    </keybind>
+    <keybind key="A-Escape">
+      <action name="Exit" />
+    </keybind>
+    <!-- Super / menu iniciar: tratados pelo tuxi-panel (layer-shell). -->
+  </keyboard>
+  <mouse>
+    <default />
+  </mouse>
+</labwc_config>

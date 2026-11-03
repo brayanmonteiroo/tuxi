@@ -78,7 +78,7 @@ impl AppCategory {
         Self::ALL.into_iter().find(|c| c.id() == id)
     }
 
-    fn from_desktop_categories(categories: &str) -> Self {
+    pub(crate) fn from_desktop_categories(categories: &str) -> Self {
         let has = |token: &str| categories.split(';').any(|c| c.eq_ignore_ascii_case(token));
 
         if has("Development") {
@@ -127,6 +127,7 @@ impl DesktopApp {
 
 /// Lista aplicações visíveis, agrupadas por categoria FreeDesktop.
 pub(crate) fn load_apps_by_category() -> BTreeMap<AppCategory, Vec<DesktopApp>> {
+    let _span = tracing::info_span!("load_apps_by_category").entered();
     let mut map: BTreeMap<AppCategory, Vec<DesktopApp>> = BTreeMap::new();
 
     for info in AppInfo::all() {
@@ -159,6 +160,8 @@ pub(crate) fn load_apps_by_category() -> BTreeMap<AppCategory, Vec<DesktopApp>> 
         apps.sort_by_key(|a| a.name.to_lowercase());
     }
 
+    let total: usize = map.values().map(Vec::len).sum();
+    debug!(categories = map.len(), apps = total, "apps carregadas");
     map
 }
 
@@ -201,17 +204,23 @@ fn resolve_desktop_file(id: &str) -> Option<PathBuf> {
     None
 }
 
+/// `true` se o nome passa o filtro de pesquisa (case-insensitive; vazio = tudo).
+pub(crate) fn matches_search_query(name: &str, query: &str) -> bool {
+    let q = query.trim().to_lowercase();
+    q.is_empty() || name.to_lowercase().contains(&q)
+}
+
 /// Filtra apps cujo nome contém `query` (case-insensitive).
 pub(crate) fn filter_apps<'a>(
     apps: &'a BTreeMap<AppCategory, Vec<DesktopApp>>,
     query: &str,
 ) -> BTreeMap<AppCategory, Vec<&'a DesktopApp>> {
-    let q = query.trim().to_lowercase();
+    let _span = tracing::debug_span!("filter_apps", query = query).entered();
     let mut out: BTreeMap<AppCategory, Vec<&DesktopApp>> = BTreeMap::new();
 
     for (cat, list) in apps {
         for app in list {
-            if q.is_empty() || app.name.to_lowercase().contains(&q) {
+            if matches_search_query(&app.name, query) {
                 out.entry(*cat).or_default().push(app);
             }
         }
@@ -228,4 +237,82 @@ pub(crate) fn launch_by_id(apps: &BTreeMap<AppCategory, Vec<DesktopApp>>, id: &s
     }
     warn!(app = %id, "aplicação não encontrada no cache do menu");
     bail!("aplicação não encontrada: {id}")
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn category_id_label_roundtrip() {
+        for cat in AppCategory::ALL {
+            assert_eq!(AppCategory::from_id(cat.id()), Some(cat));
+            assert!(!cat.label().is_empty());
+            assert!(!cat.id().is_empty());
+        }
+        assert_eq!(AppCategory::from_id("nope"), None);
+    }
+
+    #[test]
+    fn from_desktop_categories_mapping() {
+        assert_eq!(
+            AppCategory::from_desktop_categories("Development;IDE;"),
+            AppCategory::Development
+        );
+        assert_eq!(
+            AppCategory::from_desktop_categories("Network;WebBrowser;"),
+            AppCategory::Internet
+        );
+        assert_eq!(
+            AppCategory::from_desktop_categories("AudioVideo;Player;"),
+            AppCategory::Multimedia
+        );
+        assert_eq!(
+            AppCategory::from_desktop_categories("Settings;DesktopSettings;"),
+            AppCategory::Settings
+        );
+        assert_eq!(
+            AppCategory::from_desktop_categories("Game;"),
+            AppCategory::Other
+        );
+        assert_eq!(
+            AppCategory::from_desktop_categories("development;"),
+            AppCategory::Development
+        );
+    }
+
+    #[test]
+    fn matches_search_query_empty_and_case() {
+        assert!(matches_search_query("Firefox", ""));
+        assert!(matches_search_query("Firefox", "   "));
+        assert!(matches_search_query("Firefox", "fire"));
+        assert!(matches_search_query("Firefox", "FIRE"));
+        assert!(!matches_search_query("Firefox", "chrome"));
+    }
+
+    #[test]
+    fn filter_apps_by_query_on_names() {
+        // Sem AppInfo: exercita matches_search_query como o filtro real usa.
+        let names = ["Android Studio", "Firefox", "Kate"];
+        let hit_fire: Vec<_> = names
+            .iter()
+            .copied()
+            .filter(|n| matches_search_query(n, "fire"))
+            .collect();
+        assert_eq!(hit_fire, vec!["Firefox"]);
+
+        let hit_a: Vec<_> = names
+            .iter()
+            .copied()
+            .filter(|n| matches_search_query(n, "a"))
+            .collect();
+        assert_eq!(hit_a, vec!["Android Studio", "Kate"]);
+
+        let all: Vec<_> = names
+            .iter()
+            .copied()
+            .filter(|n| matches_search_query(n, ""))
+            .collect();
+        assert_eq!(all.len(), 3);
+    }
 }

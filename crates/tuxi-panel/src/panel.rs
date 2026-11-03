@@ -297,7 +297,11 @@ impl SimpleComponent for PanelModel {
                     button.set_active(false);
                 }
                 if let Err(err) = action.run() {
-                    error!(?err, action = action.label(), "falha na ação de energia/sessão");
+                    error!(
+                        ?err,
+                        action = action.label(),
+                        "falha na ação de energia/sessão"
+                    );
                 }
             }
         }
@@ -461,7 +465,10 @@ fn apply_panel_full_width(window: &gtk::Window) {
             "painel layer-shell L+R+Bottom (stretch pelo compositor)"
         );
     } else {
-        info!(is_layer = true, "painel layer-shell L+R+Bottom (monitor ainda n/d)");
+        info!(
+            is_layer = true,
+            "painel layer-shell L+R+Bottom (monitor ainda n/d)"
+        );
     }
 
     // Altura fixa; largura -1 = compositor decide (stretch L+R).
