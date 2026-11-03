@@ -60,7 +60,14 @@ Na tela de login escolhe **TUXI labwc** (uma vez). O greeter passa a lembrar —
 
 Detalhes e como outros DEs desenvolvem: [docs/DEV_WORKFLOW.md](docs/DEV_WORKFLOW.md).
 
-Nested (janela `wlroots - X11`) = só debug rápido; não uses como fluxo principal.
+### Nested (ciclo rápido, como Cosmic/KWin nested)
+
+```bash
+cargo build -p tuxi-panel
+./scripts/tuxi-nested.sh
+```
+
+Janela com labwc + painel. Só o painel no Plasma: `cargo run -p tuxi-panel`.
 
 ### Qualidade
 

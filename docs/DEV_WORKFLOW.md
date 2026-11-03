@@ -55,6 +55,28 @@ O LightDM esconde entradas cujo `TryExec` falha. Com
 
 ## Fluxo recomendado agora
 
+### A) Nested (rápido — o que “faltava”)
+
+No **host** (KDE) ou no XFCE da VM, sem logout:
+
+```bash
+cd ~/tuxi   # ou ~/dev/github/tuxi no host
+cargo build -p tuxi-panel
+sudo dnf install -y labwc   # uma vez
+./scripts/tuxi-nested.sh
+```
+
+Abre uma janela `wlroots` com a barra TUXI. Ideal para CSS, menu, botões.
+Fecha a janela = fim do teste.
+
+Também podes iterar **só o painel** no Plasma (layer-shell), sem labwc:
+
+```bash
+cargo run -p tuxi-panel
+```
+
+### B) Sessão no login (integração)
+
 ```bash
 cd ~/tuxi && git pull && cargo build -p tuxi-panel
 sudo ./scripts/install-dev-session.sh
