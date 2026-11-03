@@ -1,22 +1,35 @@
 #!/usr/bin/env bash
-# Instala a sessão de desenvolvimento TUXI+labwc no usuário atual.
+# Instala a sessão de desenvolvimento TUXI+labwc.
 #
-# No Fedora XFCE o LightDM lista sobretudo xsessions — por isso instalamos
-# em wayland-sessions E xsessions, com caminho absoluto no Exec.
+# No Fedora XFCE o LightDM lista sobretudo xsessions — instalamos em
+# wayland-sessions E xsessions, com caminho absoluto no Exec.
+#
+# Com sudo: usa o home do SUDO_USER (não /root) e também copia para /usr/share.
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
-BIN_DIR="${HOME}/.local/bin"
+
+if [[ "${EUID}" -eq 0 && -n "${SUDO_USER:-}" && "${SUDO_USER}" != "root" ]]; then
+  TARGET_HOME="$(getent passwd "${SUDO_USER}" | cut -d: -f6)"
+  TARGET_USER="${SUDO_USER}"
+else
+  TARGET_HOME="${HOME}"
+  TARGET_USER="$(id -un)"
+fi
+
+BIN_DIR="${TARGET_HOME}/.local/bin"
 SESSION_BIN="${BIN_DIR}/tuxi-labwc-session"
 
 mkdir -p "${BIN_DIR}" \
-  "${HOME}/.local/share/wayland-sessions" \
-  "${HOME}/.local/share/xsessions"
+  "${TARGET_HOME}/.local/share/wayland-sessions" \
+  "${TARGET_HOME}/.local/share/xsessions"
 
 install -m 755 "${SCRIPT_DIR}/tuxi-labwc-session" "${SESSION_BIN}"
+if [[ "${EUID}" -eq 0 && -n "${TARGET_USER}" ]]; then
+  chown "${TARGET_USER}:${TARGET_USER}" "${SESSION_BIN}" || true
+fi
 
-# .desktop gerado com path absoluto (o login do LightDM nem sempre tem ~/.local/bin no PATH).
 desktop_body() {
   cat <<EOF
 [Desktop Entry]
@@ -29,32 +42,37 @@ DesktopNames=TUXI
 EOF
 }
 
-desktop_body > "${HOME}/.local/share/wayland-sessions/tuxi-labwc.desktop"
-desktop_body > "${HOME}/.local/share/xsessions/tuxi-labwc.desktop"
-chmod 644 \
-  "${HOME}/.local/share/wayland-sessions/tuxi-labwc.desktop" \
-  "${HOME}/.local/share/xsessions/tuxi-labwc.desktop"
+write_desktop() {
+  local dest="$1"
+  desktop_body > "${dest}"
+  chmod 644 "${dest}"
+  if [[ "${EUID}" -eq 0 && -n "${TARGET_USER}" && "${dest}" == "${TARGET_HOME}"/* ]]; then
+    chown "${TARGET_USER}:${TARGET_USER}" "${dest}" || true
+  fi
+}
 
-# Cópia em /usr/share (LightDM do XFCE costuma olhar só aqui).
+write_desktop "${TARGET_HOME}/.local/share/wayland-sessions/tuxi-labwc.desktop"
+write_desktop "${TARGET_HOME}/.local/share/xsessions/tuxi-labwc.desktop"
+
 if [[ "${EUID}" -eq 0 ]]; then
   install -d /usr/share/wayland-sessions /usr/share/xsessions
-  desktop_body > /usr/share/wayland-sessions/tuxi-labwc.desktop
-  desktop_body > /usr/share/xsessions/tuxi-labwc.desktop
-  chmod 644 /usr/share/wayland-sessions/tuxi-labwc.desktop \
-    /usr/share/xsessions/tuxi-labwc.desktop
+  write_desktop /usr/share/wayland-sessions/tuxi-labwc.desktop
+  write_desktop /usr/share/xsessions/tuxi-labwc.desktop
   echo "Também instalado em /usr/share/{wayland-sessions,xsessions}/"
+  echo "(Exec aponta para ${SESSION_BIN})"
 else
   echo "Para o LightDM do XFCE enxergar com certeza, rode também:"
   echo "  sudo \"${REPO_ROOT}/scripts/install-dev-session.sh\""
 fi
 
 echo
+echo "Usuário alvo: ${TARGET_USER} (${TARGET_HOME})"
 echo "Arquivos:"
 ls -la "${SESSION_BIN}"
-ls -la "${HOME}/.local/share/xsessions/tuxi-labwc.desktop"
-ls -la "${HOME}/.local/share/wayland-sessions/tuxi-labwc.desktop"
+ls -la "${TARGET_HOME}/.local/share/xsessions/tuxi-labwc.desktop"
+ls -la "${TARGET_HOME}/.local/share/wayland-sessions/tuxi-labwc.desktop"
 echo
-echo "1) cargo build -p tuxi-panel  (em ${HOME}/tuxi ou ${REPO_ROOT})"
+echo "1) cargo build -p tuxi-panel  (em ${TARGET_HOME}/tuxi)"
 echo "2) Logout → na tela de login escolha \"TUXI (labwc)\""
 echo
 echo "Plano B (sem login): Ctrl+Alt+F3, login no TTY, depois:"
