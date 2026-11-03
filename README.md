@@ -64,10 +64,13 @@ Detalhes e como outros DEs desenvolvem: [docs/DEV_WORKFLOW.md](docs/DEV_WORKFLOW
 
 ```bash
 cargo build -p tuxi-panel
-./scripts/tuxi-nested.sh
+./scripts/tuxi-nested.sh          # abre a janela (uma vez)
+# ... edita código/CSS ...
+./scripts/tuxi-reload-panel.sh    # rebuild + só o painel (sem fechar labwc)
 ```
 
-Janela com labwc + painel. Só o painel no Plasma: `cargo run -p tuxi-panel`.
+Não precisas reiniciar o nested a cada mudança — só o painel.  
+Só o painel no Plasma (sem labwc): `cargo run -p tuxi-panel`.
 
 ### Qualidade
 
