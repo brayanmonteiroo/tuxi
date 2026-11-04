@@ -1,6 +1,9 @@
 //! Painel inferior Wayland (layer-shell) e shell do menu iniciar.
 
 use std::collections::BTreeMap;
+use std::fs;
+use std::path::PathBuf;
+use std::time::Duration;
 
 use chrono::Local;
 use gtk4_layer_shell::{Edge, KeyboardMode, Layer, LayerShell};
@@ -37,6 +40,8 @@ pub(crate) enum PanelMsg {
     Launch(String),
     Power(PowerAction),
     MenuClosed,
+    /// Pedido externo (ex.: RMB na área de trabalho) para fechar o menu.
+    DismissMenu,
     TasksUpdated(Vec<TaskInfo>),
     TaskActivate(u32),
     TaskClose(u32),
@@ -201,6 +206,15 @@ impl SimpleComponent for PanelModel {
             glib::ControlFlow::Continue
         });
 
+        // Área de trabalho (e outros) pedem fechar o menu via ficheiro em runtime.
+        let dismiss_sender = sender.clone();
+        glib::timeout_add_local(Duration::from_millis(120), move || {
+            if take_dismiss_menu_signal() {
+                dismiss_sender.input(PanelMsg::DismissMenu);
+            }
+            glib::ControlFlow::Continue
+        });
+
         info!(
             apps = model.apps.values().map(Vec::len).sum::<usize>(),
             "painel TUXI iniciado"
@@ -223,6 +237,12 @@ impl SimpleComponent for PanelModel {
                     sender.input(PanelMsg::MenuClosed);
                 } else {
                     show_menu(self);
+                }
+            }
+            PanelMsg::DismissMenu => {
+                if self.menu_window.as_ref().is_some_and(|w| w.is_visible()) {
+                    hide_menu(self);
+                    sender.input(PanelMsg::MenuClosed);
                 }
             }
             PanelMsg::MenuClosed => {
@@ -565,6 +585,23 @@ fn hide_menu(model: &PanelModel) {
     if let Some(button) = &model.menu_button {
         button.set_active(false);
     }
+}
+
+fn dismiss_menu_signal_path() -> PathBuf {
+    let runtime = std::env::var_os("XDG_RUNTIME_DIR")
+        .map(PathBuf::from)
+        .unwrap_or_else(|| PathBuf::from("/tmp"));
+    runtime.join("tuxi-dismiss-menu")
+}
+
+/// Consome o pedido da área de trabalho (ou outro) para fechar o menu.
+fn take_dismiss_menu_signal() -> bool {
+    let path = dismiss_menu_signal_path();
+    if !path.exists() {
+        return false;
+    }
+    let _ = fs::remove_file(&path);
+    true
 }
 
 fn format_clock() -> String {

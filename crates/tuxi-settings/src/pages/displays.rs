@@ -3,31 +3,18 @@ use std::rc::Rc;
 use relm4::adw;
 use relm4::gtk::{self, prelude::*};
 
+use crate::page_chrome::{page_header, page_scroller};
 use crate::wlr_randr::{
     apply_output, probe_outputs, ApplyRequest, OutputHead, OutputMode, ProbeResult,
 };
 
 pub(crate) fn build_displays_page() -> gtk::Widget {
     let root = gtk::Box::new(gtk::Orientation::Vertical, 12);
-    root.set_margin_top(16);
-    root.set_margin_bottom(16);
-    root.set_margin_start(20);
-    root.set_margin_end(20);
-    root.add_css_class("tuxi-settings-content");
-
-    let header = gtk::Label::builder()
-        .label("Telas")
-        .halign(gtk::Align::Start)
-        .css_classes(["title-1"])
-        .build();
-    let subtitle = gtk::Label::builder()
-        .label("Monitores ligados ao labwc (wlr-output-management).")
-        .halign(gtk::Align::Start)
-        .css_classes(["tuxi-settings-muted"])
-        .wrap(true)
-        .build();
-    root.append(&header);
-    root.append(&subtitle);
+    root.set_hexpand(true);
+    root.append(&page_header(
+        "Telas",
+        "Monitores ligados ao labwc (wlr-output-management).",
+    ));
 
     let content = gtk::Box::new(gtk::Orientation::Vertical, 10);
     root.append(&content);
@@ -52,16 +39,7 @@ pub(crate) fn build_displays_page() -> gtk::Widget {
     toolbar.append(&refresh_btn);
     root.append(&toolbar);
 
-    let clamp = adw::Clamp::builder()
-        .maximum_size(780)
-        .child(&root)
-        .build();
-    let scrolled = gtk::ScrolledWindow::builder()
-        .hscrollbar_policy(gtk::PolicyType::Never)
-        .vexpand(true)
-        .child(&clamp)
-        .build();
-    scrolled.upcast()
+    page_scroller(&root)
 }
 
 fn clear_box(box_: &gtk::Box) {

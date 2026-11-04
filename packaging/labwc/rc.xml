@@ -10,6 +10,15 @@
     <gap>6</gap>
   </core>
 
+  <!-- Limite tipo KDE: o labwc resiste nas bordas da área útil
+       (ecrã menos exclusive-zone do tuxi-panel). NÃO usar <margin>
+       em paralelo — soma com a exclusive-zone e “duplica” a reserva.
+       Valor alto ≈ bloqueio duro (não esconder a janela atrás do painel). -->
+  <resistance>
+    <screenEdgeStrength>100000</screenEdgeStrength>
+    <windowEdgeStrength>20</windowEdgeStrength>
+  </resistance>
+
   <theme>
     <name>TUXI</name>
     <titlebar>
@@ -56,11 +65,21 @@
     <default />
   </mouse>
 
-  <!-- Apps abrem maximizados; força SSD TUXI quando o cliente pede CSD. -->
+  <!-- Apps abrem maximizados; SSD TUXI por omissão.
+       Electron/Chromium já trazem CSD — SSD em cima duplicava a barra. -->
   <windowRules>
     <windowRule identifier="*">
       <action name="Maximize" />
     </windowRule>
     <windowRule identifier="*" serverDecoration="yes" />
+    <windowRule identifier="*chatgpt*" serverDecoration="no" />
+    <windowRule identifier="chatgpt" serverDecoration="no" />
+    <windowRule identifier="ChatGPT" serverDecoration="no" />
+    <windowRule identifier="*Chromium*" serverDecoration="no" />
+    <windowRule identifier="*chrom*" serverDecoration="no" />
+    <windowRule identifier="*electron*" serverDecoration="no" />
+    <windowRule identifier="*Bruno*" serverDecoration="no" />
+    <windowRule identifier="bruno" serverDecoration="no" />
+    <windowRule identifier="org.bruno*" serverDecoration="no" />
   </windowRules>
 </labwc_config>

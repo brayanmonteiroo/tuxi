@@ -21,6 +21,12 @@ window.tuxi-desktop {
   background-color: transparent;
 }
 
+.tuxi-desktop-rubberband {
+  background-color: alpha(@tuxi_accent, 0.22);
+  border: 1px solid alpha(@tuxi_accent, 0.85);
+  border-radius: 2px;
+}
+
 .tuxi-desktop-icon {
   border-radius: 10px;
   padding: 6px 8px;
@@ -106,13 +112,14 @@ popover.tuxi-desktop-menu > contents {
   border: 1px solid @tuxi_border;
   border-radius: 12px;
   min-width: 320px;
-  box-shadow: 0 12px 40px alpha(#000, 0.55);
-  overflow: hidden;
+  box-shadow: none;
 }
 
 .tuxi-desktop-modal-header {
   background-color: @tuxi_bg;
   border-bottom: 1px solid @tuxi_border;
+  border-top-left-radius: 11px;
+  border-top-right-radius: 11px;
   padding: 6px 8px 6px 14px;
   min-height: 36px;
 }
@@ -125,6 +132,8 @@ popover.tuxi-desktop-menu > contents {
 
 .tuxi-desktop-modal-body {
   padding: 16px 18px 18px;
+  border-bottom-left-radius: 11px;
+  border-bottom-right-radius: 11px;
 }
 
 .tuxi-desktop-modal-body .dim-label {

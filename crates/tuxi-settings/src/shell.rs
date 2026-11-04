@@ -4,6 +4,9 @@
 //! (minimizar / maximizar / fechar). Título da janela = "Configurações — Página".
 //! Sem HeaderBar interna — evita botões duplicados.
 
+use std::cell::Cell;
+use std::rc::Rc;
+
 use relm4::gtk::{self, prelude::*, Orientation};
 use relm4::{ComponentParts, ComponentSender, SimpleComponent};
 use tracing::warn;
@@ -11,10 +14,19 @@ use tracing::warn;
 use crate::pages::{build_page, PageId};
 use crate::style;
 
+/// Largura mínima: evita partir texto letra a letra.
+const MIN_WIDTH: i32 = 720;
+const MIN_HEIGHT: i32 = 480;
+/// Abaixo disto a sidebar passa a só ícones.
+const COMPACT_NAV_AT: i32 = 860;
+
 pub(crate) struct SettingsModel {
     selected: PageId,
     search: String,
+    compact_nav: bool,
     sidebar: Option<gtk::ListBox>,
+    sidebar_shell: Option<gtk::Box>,
+    search_entry: Option<gtk::SearchEntry>,
     content_host: Option<gtk::Box>,
     window: Option<gtk::ApplicationWindow>,
 }
@@ -42,6 +54,7 @@ fn window_title(page: PageId) -> String {
 pub(crate) enum SettingsMsg {
     Select(PageId),
     Search(String),
+    SetCompactNav(bool),
 }
 
 #[relm4::component(pub)]
@@ -53,8 +66,8 @@ impl SimpleComponent for SettingsModel {
     view! {
         #[root]
         gtk::ApplicationWindow {
-            set_default_width: 960,
-            set_default_height: 640,
+            set_default_width: 1100,
+            set_default_height: 720,
             set_decorated: true,
             add_css_class: "tuxi-settings",
 
@@ -63,6 +76,7 @@ impl SimpleComponent for SettingsModel {
                 set_vexpand: true,
                 set_hexpand: true,
 
+                #[name = "sidebar_shell"]
                 gtk::Box {
                     set_orientation: Orientation::Vertical,
                     set_hexpand: false,
@@ -123,13 +137,18 @@ impl SimpleComponent for SettingsModel {
         let mut model = SettingsModel {
             selected: init,
             search: String::new(),
+            compact_nav: false,
             sidebar: None,
+            sidebar_shell: None,
+            search_entry: None,
             content_host: None,
             window: None,
         };
 
         let widgets = view_output!();
         model.sidebar = Some(widgets.sidebar.clone());
+        model.sidebar_shell = Some(widgets.sidebar_shell.clone());
+        model.search_entry = Some(widgets.search_entry.clone());
         model.content_host = Some(widgets.content_host.clone());
         model.window = Some(root.clone());
 
@@ -137,10 +156,29 @@ impl SimpleComponent for SettingsModel {
         root.set_titlebar(gtk::Widget::NONE);
         root.set_decorated(true);
         root.set_title(Some(&window_title(init)));
+        root.set_size_request(MIN_WIDTH, MIN_HEIGHT);
 
-        populate_sidebar(&widgets.sidebar, &model.search, model.selected);
+        populate_sidebar(&widgets.sidebar, &model.search, model.selected, false);
         show_page(&widgets.content_host, model.selected);
         widgets.search_entry.grab_focus();
+
+        // Compacta a nav quando a janela estreita (ícones + tooltip).
+        let sender_sz = sender.clone();
+        let last_compact = Rc::new(Cell::new(false));
+        root.connect_realize(move |win| {
+            let Some(surface) = win.surface() else {
+                return;
+            };
+            let sender_sz = sender_sz.clone();
+            let last_compact = last_compact.clone();
+            surface.connect_layout(move |_, width, _height| {
+                let compact = width < COMPACT_NAV_AT;
+                if last_compact.get() != compact {
+                    last_compact.set(compact);
+                    sender_sz.input(SettingsMsg::SetCompactNav(compact));
+                }
+            });
+        });
 
         let win = root.clone();
         gtk::glib::idle_add_local_once(move || {
@@ -167,7 +205,29 @@ impl SimpleComponent for SettingsModel {
             SettingsMsg::Search(q) => {
                 self.search = q;
                 if let Some(list) = &self.sidebar {
-                    populate_sidebar(list, &self.search, self.selected);
+                    populate_sidebar(list, &self.search, self.selected, self.compact_nav);
+                }
+            }
+            SettingsMsg::SetCompactNav(compact) => {
+                if self.compact_nav == compact {
+                    return;
+                }
+                self.compact_nav = compact;
+                if let Some(win) = &self.window {
+                    if compact {
+                        win.add_css_class("compact-nav");
+                    } else {
+                        win.remove_css_class("compact-nav");
+                    }
+                }
+                if let Some(shell) = &self.sidebar_shell {
+                    shell.set_width_request(if compact { 56 } else { 260 });
+                }
+                if let Some(search) = &self.search_entry {
+                    search.set_visible(!compact);
+                }
+                if let Some(list) = &self.sidebar {
+                    populate_sidebar(list, &self.search, self.selected, compact);
                 }
             }
         }
@@ -192,7 +252,7 @@ fn select_sidebar_row(list: &gtk::ListBox, selected: PageId) {
     }
 }
 
-fn populate_sidebar(list: &gtk::ListBox, query: &str, selected: PageId) {
+fn populate_sidebar(list: &gtk::ListBox, query: &str, selected: PageId, compact: bool) {
     while let Some(child) = list.first_child() {
         list.remove(&child);
     }
@@ -204,32 +264,44 @@ fn populate_sidebar(list: &gtk::ListBox, query: &str, selected: PageId) {
         }
         let row = gtk::ListBoxRow::new();
         row.set_widget_name(page.id());
+        row.set_tooltip_text(Some(page.title()));
 
-        let box_ = gtk::Box::new(Orientation::Horizontal, 10);
-        box_.set_margin_start(6);
-        box_.set_margin_end(6);
+        let box_ = gtk::Box::new(Orientation::Horizontal, if compact { 0 } else { 10 });
+        box_.set_margin_start(if compact { 4 } else { 6 });
+        box_.set_margin_end(if compact { 4 } else { 6 });
         box_.set_margin_top(6);
         box_.set_margin_bottom(6);
+        box_.set_halign(if compact {
+            gtk::Align::Center
+        } else {
+            gtk::Align::Fill
+        });
 
         let icon = gtk::Image::from_icon_name(page.icon_name());
-        icon.set_pixel_size(18);
+        icon.set_pixel_size(if compact { 22 } else { 18 });
         box_.append(&icon);
 
-        let labels = gtk::Box::new(Orientation::Vertical, 0);
-        labels.append(
-            &gtk::Label::builder()
-                .label(page.title())
-                .halign(gtk::Align::Start)
-                .build(),
-        );
-        labels.append(
-            &gtk::Label::builder()
-                .label(page.subtitle())
-                .halign(gtk::Align::Start)
-                .css_classes(["caption", "tuxi-settings-muted"])
-                .build(),
-        );
-        box_.append(&labels);
+        if !compact {
+            let labels = gtk::Box::new(Orientation::Vertical, 0);
+            labels.add_css_class("tuxi-settings-nav-text");
+            labels.append(
+                &gtk::Label::builder()
+                    .label(page.title())
+                    .halign(gtk::Align::Start)
+                    .ellipsize(gtk::pango::EllipsizeMode::End)
+                    .build(),
+            );
+            labels.append(
+                &gtk::Label::builder()
+                    .label(page.subtitle())
+                    .halign(gtk::Align::Start)
+                    .ellipsize(gtk::pango::EllipsizeMode::End)
+                    .css_classes(["caption", "tuxi-settings-muted"])
+                    .build(),
+            );
+            box_.append(&labels);
+        }
+
         row.set_child(Some(&box_));
         list.append(&row);
 

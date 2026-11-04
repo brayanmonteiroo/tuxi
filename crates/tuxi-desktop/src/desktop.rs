@@ -2,12 +2,13 @@
 
 use std::cell::Cell;
 use std::collections::{HashMap, HashSet};
+use std::fs;
 use std::path::PathBuf;
 use std::rc::Rc;
 use std::time::Duration;
 
 use gtk4_layer_shell::{Edge, KeyboardMode, Layer, LayerShell};
-use relm4::adw::{self, prelude::*};
+use relm4::adw::prelude::*;
 use relm4::gtk::gdk::{self, Key, ModifierType};
 use relm4::gtk::gio;
 use relm4::gtk::glib;
@@ -16,7 +17,7 @@ use relm4::{ComponentParts, ComponentSender, SimpleComponent};
 use tracing::{info, warn};
 
 use crate::actions;
-use crate::layout::{DesktopLayout, IconPos};
+use crate::layout::{self, DesktopLayout, IconPos};
 use crate::scan::{self, DesktopEntry};
 use crate::style;
 use crate::xdg;
@@ -27,8 +28,6 @@ const GRID_PAD: f64 = 16.0;
 const GRID_GAP_X: f64 = 12.0;
 const GRID_GAP_Y: f64 = 8.0;
 const DRAG_THRESHOLD: f64 = 8.0;
-/// Reserva inferior = altura do `tuxi-panel` (+ folga) para ícones não ficarem sob a barra.
-const PANEL_RESERVE_BOTTOM: f64 = 48.0 + 8.0;
 
 fn grid_cell_w() -> f64 {
     f64::from(ICON_W) + GRID_GAP_X
@@ -61,6 +60,8 @@ pub(crate) struct DesktopModel {
 pub(crate) enum DesktopMsg {
     Refresh,
     ClearSelection,
+    /// Substitui a seleção (rubber-band / clique vazio).
+    SelectSet(HashSet<String>),
     Activate(String),
     SelectToggle(String, bool),
     MoveIcon { name: String, x: f64, y: f64 },
@@ -165,12 +166,25 @@ impl SimpleComponent for DesktopModel {
 
         apply_wallpaper(&wallpaper, model.layout.wallpaper.as_ref());
 
-        // Clique no vazio: Target = só o canvas, não os ícones.
+        // Rubber-band + clique no vazio (Target = só o canvas, não os ícones).
+        let rubber_active = Rc::new(Cell::new(false));
+        install_rubber_band(
+            &canvas,
+            &overlay,
+            sender.clone(),
+            rubber_active.clone(),
+        );
+
         let click = gtk::GestureClick::new();
         click.set_button(1);
         click.set_propagation_phase(gtk::PropagationPhase::Target);
         let sender_clear = sender.clone();
+        let rubber_click = rubber_active;
         click.connect_released(move |_, _, _, _| {
+            request_dismiss_panel_menu();
+            if rubber_click.get() {
+                return;
+            }
             sender_clear.input(DesktopMsg::ClearSelection);
         });
         canvas.add_controller(click);
@@ -183,6 +197,8 @@ impl SimpleComponent for DesktopModel {
         let root_ctx = root.clone();
         let dir_ctx = desktop_dir.clone();
         right.connect_pressed(move |_, _, x, y| {
+            // Como no Plasma: RMB no desktop fecha o menu iniciar.
+            request_dismiss_panel_menu();
             show_empty_context_menu(&root_ctx, &canvas_ctx, &dir_ctx, x, y, sender_ctx.clone());
         });
         canvas.add_controller(right);
@@ -220,6 +236,10 @@ impl SimpleComponent for DesktopModel {
             }
             DesktopMsg::ClearSelection => {
                 self.selected.clear();
+                sync_selection_style(self);
+            }
+            DesktopMsg::SelectSet(names) => {
+                self.selected = names;
                 sync_selection_style(self);
             }
             DesktopMsg::Activate(name) => {
@@ -389,10 +409,10 @@ fn rebuild_icons(model: &mut DesktopModel, sender: &ComponentSender<DesktopModel
 
 /// Só limites do ecrã (sem grelha) — usado durante o arrasto para deslizar livre.
 fn clamp_bounds(fixed: &gtk::Fixed, x: f64, y: f64) -> (f64, f64) {
-    let fw = f64::from(fixed.width());
-    let fh = f64::from(fixed.height());
-    let iw = f64::from(ICON_W);
-    let ih = f64::from(ICON_H);
+    let fw = fixed.width();
+    let fh = fixed.height();
+    let iw = ICON_W;
+    let ih = ICON_H;
 
     if fw < iw || fh < ih {
         if !(0.0..4000.0).contains(&x) || !(0.0..4000.0).contains(&y) {
@@ -401,9 +421,7 @@ fn clamp_bounds(fixed: &gtk::Fixed, x: f64, y: f64) -> (f64, f64) {
         return (x.max(0.0), y.max(0.0));
     }
 
-    let max_x = (fw - iw).max(0.0);
-    let max_y = (fh - ih - PANEL_RESERVE_BOTTOM).max(0.0);
-    (x.clamp(0.0, max_x), y.clamp(0.0, max_y))
+    layout::WorkArea::from_screen(fw, fh).clamp_child(iw, ih, x, y)
 }
 
 /// Ao soltar / criar: alinha à grelha e mantém dentro da área.
@@ -532,6 +550,7 @@ fn build_icon_widget(
 ) -> gtk::Box {
     let box_ = gtk::Box::new(gtk::Orientation::Vertical, 4);
     box_.set_size_request(ICON_W, ICON_H);
+    box_.set_widget_name(&entry.name);
     box_.add_css_class("tuxi-desktop-icon");
     if selected.contains(&entry.name) {
         box_.add_css_class("selected");
@@ -691,6 +710,10 @@ fn pointer_in_fixed(gesture: &gtk::GestureDrag, fixed: &gtk::Fixed) -> Option<(f
     Some((f64::from(pt.x()), f64::from(pt.y())))
 }
 
+fn event_surface_pos(gesture: &gtk::GestureDrag) -> Option<(f64, f64)> {
+    gesture.current_event()?.position()
+}
+
 fn show_empty_context_menu(
     root: &gtk::Window,
     canvas: &gtk::Fixed,
@@ -791,7 +814,7 @@ fn place_context_popover(pop: &gtk::Popover, canvas: &gtk::Fixed, x: f64, y: f64
     let est_h = 200.0;
 
     let open_left = x + est_w > cw;
-    let open_up = y + est_h > ch - PANEL_RESERVE_BOTTOM;
+    let open_up = y + est_h > ch - f64::from(layout::PANEL_RESERVE_BOTTOM);
 
     let position = match (open_up, open_left) {
         (false, false) => gtk::PositionType::Bottom, // abre para baixo-direita
@@ -926,7 +949,36 @@ fn append_create_submenu(
         }
     });
 
-    append_menu_row(&sub_box, "text-x-generic-symbolic", "Arquivo vazio", {
+    if let Some(text_tpl) = find_template(&["Texto.txt", "Arquivo de texto.txt"]) {
+        let default_name =
+            actions::suggested_unique_name(desktop_dir, "Arquivo de texto.txt");
+        append_menu_row(
+            &sub_box,
+            "text-x-generic-symbolic",
+            "Arquivo de texto…",
+            {
+                let dir = desktop_dir.clone();
+                let s = sender.clone();
+                let r = root.clone();
+                let close = close_menus.clone();
+                let t = text_tpl;
+                move || {
+                    close();
+                    present_name_dialog(&r, "Arquivo de texto", &default_name, {
+                        let dir = dir.clone();
+                        let s = s.clone();
+                        let t = t.clone();
+                        move |name| match actions::create_from_template(&dir, &t, &name) {
+                            Ok(path) => place_created(&path, click_x, click_y, &s),
+                            Err(err) => warn!(?err, "criar texto"),
+                        }
+                    });
+                }
+            },
+        );
+    }
+
+    append_menu_row(&sub_box, "text-x-generic-symbolic", "Arquivo vazio…", {
         let dir = desktop_dir.clone();
         let s = sender.clone();
         let r = root.clone();
@@ -936,7 +988,7 @@ fn append_create_submenu(
             present_name_dialog(
                 &r,
                 "Arquivo vazio",
-                &actions::suggested_unique_name(&dir, "Arquivo vazio.txt"),
+                &actions::suggested_unique_name(&dir, "Arquivo vazio"),
                 {
                     let dir = dir.clone();
                     let s = s.clone();
@@ -949,26 +1001,23 @@ fn append_create_submenu(
         }
     });
 
-    for template in xdg::list_template_files() {
-        let (label, icon, dialog_title) = template_menu_meta(&template);
-        let default_name = actions::suggested_unique_name(desktop_dir, &label_file_name(&template));
-        append_menu_row(&sub_box, icon, &label, {
+    if let Some(html_tpl) = find_template(&["HTML.html", "Documento HTML.html"]) {
+        let default_name = actions::suggested_unique_name(desktop_dir, "Arquivo HTML.html");
+        append_menu_row(&sub_box, "text-html-symbolic", "Arquivo HTML…", {
             let dir = desktop_dir.clone();
             let s = sender.clone();
             let r = root.clone();
             let close = close_menus.clone();
-            let t = template.clone();
-            let title = dialog_title;
-            let suggested = default_name.clone();
+            let t = html_tpl;
             move || {
                 close();
-                present_name_dialog(&r, &title, &suggested, {
+                present_name_dialog(&r, "Arquivo HTML", &default_name, {
                     let dir = dir.clone();
                     let s = s.clone();
                     let t = t.clone();
                     move |name| match actions::create_from_template(&dir, &t, &name) {
                         Ok(path) => place_created(&path, click_x, click_y, &s),
-                        Err(err) => warn!(?err, "criar de template"),
+                        Err(err) => warn!(?err, "criar HTML"),
                     }
                 });
             }
@@ -1012,32 +1061,140 @@ fn place_created(
     sender.input(DesktopMsg::Refresh);
 }
 
-fn template_menu_meta(path: &std::path::Path) -> (String, &'static str, String) {
-    let file = path
-        .file_name()
-        .and_then(|n| n.to_str())
-        .unwrap_or("Modelo");
-    let stem = path
-        .file_stem()
-        .and_then(|n| n.to_str())
-        .unwrap_or(file);
-    // Labels curtos no submenu; ficheiro em packaging/templates define o default.
-    let (label, icon) = match file {
-        "Texto.txt" | "Arquivo de texto.txt" => ("Texto", "text-x-generic-symbolic"),
-        "HTML.html" | "Documento HTML.html" => ("HTML", "text-html-symbolic"),
-        _ => (stem, "document-new-symbolic"),
-    };
-    (label.to_string(), icon, format!("Novo: {label}"))
+fn find_template(names: &[&str]) -> Option<PathBuf> {
+    let files = xdg::list_template_files();
+    for want in names {
+        if let Some(p) = files.iter().find(|p| {
+            p.file_name()
+                .and_then(|n| n.to_str())
+                .is_some_and(|n| n.eq_ignore_ascii_case(want))
+        }) {
+            return Some(p.clone());
+        }
+    }
+    None
 }
 
-fn label_file_name(path: &std::path::Path) -> String {
-    path.file_name()
-        .and_then(|n| n.to_str())
-        .unwrap_or("Novo ficheiro")
-        .to_string()
+fn request_dismiss_panel_menu() {
+    let runtime = std::env::var_os("XDG_RUNTIME_DIR")
+        .map(PathBuf::from)
+        .unwrap_or_else(|| PathBuf::from("/tmp"));
+    let path = runtime.join("tuxi-dismiss-menu");
+    let _ = fs::write(&path, b"1");
 }
 
-/// Modal centrada no desktop (overlay), chrome TUXI + bloqueia cliques atrás.
+fn install_rubber_band(
+    canvas: &gtk::Fixed,
+    overlay: &gtk::Overlay,
+    sender: ComponentSender<DesktopModel>,
+    rubber_active: Rc<Cell<bool>>,
+) {
+    let band = gtk::Box::new(gtk::Orientation::Horizontal, 0);
+    band.add_css_class("tuxi-desktop-rubberband");
+    band.set_halign(gtk::Align::Start);
+    band.set_valign(gtk::Align::Start);
+    band.set_visible(false);
+    band.set_can_target(false);
+    overlay.add_overlay(&band);
+
+    let origin = Rc::new(Cell::new((0.0_f64, 0.0_f64)));
+    let dragging = Rc::new(Cell::new(false));
+
+    let drag = gtk::GestureDrag::new();
+    drag.set_button(1);
+    drag.set_propagation_phase(gtk::PropagationPhase::Target);
+
+    let origin_b = origin.clone();
+    let dragging_b = dragging.clone();
+    let active_b = rubber_active.clone();
+    let band_b = band.clone();
+    drag.connect_drag_begin(move |gesture, x, y| {
+        // Coordenadas do gesto são relativas ao widget alvo (canvas).
+        let _ = gesture;
+        origin_b.set((x, y));
+        dragging_b.set(false);
+        active_b.set(false);
+        band_b.set_visible(false);
+    });
+
+    let origin_u = origin.clone();
+    let dragging_u = dragging.clone();
+    let active_u = rubber_active.clone();
+    let band_u = band.clone();
+    let canvas_u = canvas.clone();
+    let sender_u = sender.clone();
+    drag.connect_drag_update(move |_, offset_x, offset_y| {
+        let (ox, oy) = origin_u.get();
+        let dist = offset_x.hypot(offset_y);
+        if !dragging_u.get() {
+            if dist < DRAG_THRESHOLD {
+                return;
+            }
+            dragging_u.set(true);
+            active_u.set(true);
+            request_dismiss_panel_menu();
+            band_u.set_visible(true);
+        }
+
+        let x1 = ox.min(ox + offset_x);
+        let y1 = oy.min(oy + offset_y);
+        let x2 = ox.max(ox + offset_x);
+        let y2 = oy.max(oy + offset_y);
+        let w = (x2 - x1).max(1.0);
+        let h = (y2 - y1).max(1.0);
+
+        band_u.set_margin_start(x1 as i32);
+        band_u.set_margin_top(y1 as i32);
+        band_u.set_size_request(w as i32, h as i32);
+
+        let mut hit = HashSet::new();
+        let mut child = canvas_u.first_child();
+        while let Some(widget) = child {
+            child = widget.next_sibling();
+            let Ok(icon) = widget.downcast::<gtk::Box>() else {
+                continue;
+            };
+            if !icon.has_css_class("tuxi-desktop-icon") {
+                continue;
+            }
+            let (ix, iy) = canvas_u.child_position(&icon);
+            let iw = f64::from(icon.width().max(ICON_W));
+            let ih = f64::from(icon.height().max(ICON_H));
+            let intersects = !(ix + iw < x1 || ix > x2 || iy + ih < y1 || iy > y2);
+            if intersects {
+                // Nome no tooltip ou no accessible? Guardamos no widget_name.
+                let name = icon.widget_name().to_string();
+                if !name.is_empty() {
+                    hit.insert(name);
+                }
+            }
+        }
+        sender_u.input(DesktopMsg::SelectSet(hit));
+    });
+
+    let dragging_e = dragging;
+    let active_e = rubber_active;
+    let band_e = band;
+    drag.connect_drag_end(move |_, _, _| {
+        band_e.set_visible(false);
+        band_e.set_size_request(1, 1);
+        // Mantém active até ao released do GestureClick limpar o flag.
+        if !dragging_e.get() {
+            active_e.set(false);
+        } else {
+            // Próximo idle: permite ClearSelection no próximo clique limpo.
+            let active = active_e.clone();
+            glib::idle_add_local_once(move || {
+                active.set(false);
+            });
+        }
+        dragging_e.set(false);
+    });
+
+    canvas.add_controller(drag);
+}
+
+/// Modal centrada (arrastável pela barra), chrome TUXI + bloqueia cliques atrás.
 fn present_name_dialog(
     parent: &gtk::Window,
     title: &str,
@@ -1066,12 +1223,13 @@ fn present_name_dialog(
 
     let card = gtk::Box::new(gtk::Orientation::Vertical, 0);
     card.add_css_class("tuxi-desktop-modal-card");
+    card.set_size_request(400, -1);
     card.set_hexpand(false);
     card.set_vexpand(false);
 
-    // Barra superior estilo TUXI (como settings / SSD).
     let header = gtk::Box::new(gtk::Orientation::Horizontal, 8);
     header.add_css_class("tuxi-desktop-modal-header");
+    header.set_cursor_from_name(Some("grab"));
 
     let title_l = gtk::Label::new(Some(title));
     title_l.set_halign(gtk::Align::Start);
@@ -1117,23 +1275,115 @@ fn present_name_dialog(
     card.append(&header);
     card.append(&body);
 
-    // Clamp limita a largura em qualquer resolução; CenterBox centra no ecrã.
-    let clamp = adw::Clamp::builder()
-        .maximum_size(420)
-        .tightening_threshold(320)
-        .child(&card)
-        .build();
-    clamp.set_halign(gtk::Align::Center);
-    clamp.set_hexpand(false);
-
-    let vcenter = gtk::CenterBox::new();
-    vcenter.set_orientation(gtk::Orientation::Vertical);
-    vcenter.set_hexpand(true);
-    vcenter.set_vexpand(true);
-    vcenter.set_center_widget(Some(&clamp));
-    dim.append(&vcenter);
-
+    // Fixed + WorkArea: centro real (GTK Align falhava em Box/Overlay).
+    let stage = gtk::Fixed::new();
+    stage.set_hexpand(true);
+    stage.set_vexpand(true);
+    stage.set_halign(gtk::Align::Fill);
+    stage.set_valign(gtk::Align::Fill);
+    stage.set_margin_bottom(layout::PANEL_RESERVE_BOTTOM);
+    dim.append(&stage);
     overlay.add_overlay(&dim);
+
+    fn work_area_of(parent: &gtk::Window, stage: &gtk::Fixed) -> layout::WorkArea {
+        let mut w = stage.width();
+        let mut h = stage.height();
+        if w < 64 || h < 64 {
+            if let Some(mon) = desktop_monitor(parent) {
+                let g = mon.geometry();
+                w = g.width();
+                h = (g.height() - layout::PANEL_RESERVE_BOTTOM).max(1);
+            }
+        }
+        layout::WorkArea {
+            width: w.max(1),
+            height: h.max(1),
+        }
+    }
+
+    fn place_modal_card(parent: &gtk::Window, stage: &gtk::Fixed, card: &gtk::Box) {
+        let cw = card.width().max(card.size_request().0.max(400));
+        let ch = card.height().max(card.size_request().1.max(120));
+        let wa = work_area_of(parent, stage);
+        let (x, y) = wa.center_child(cw, ch);
+        if card.parent().as_ref() == Some(stage.upcast_ref()) {
+            stage.move_(card, x, y);
+        } else {
+            stage.put(card, x, y);
+        }
+    }
+
+    stage.put(&card, 0.0, 0.0);
+    let placed = Rc::new(Cell::new(false));
+    // Reposiciona até ter tamanho real (GTK4 não expõe size-allocate).
+    {
+        let parent_p = parent.clone();
+        let stage_p = stage.clone();
+        let card_p = card.clone();
+        let placed_p = placed.clone();
+        let attempts = Rc::new(Cell::new(0_u32));
+        let attempts_c = attempts.clone();
+        glib::timeout_add_local(Duration::from_millis(16), move || {
+            if placed_p.get() {
+                return glib::ControlFlow::Break;
+            }
+            let n = attempts_c.get();
+            if n > 30 {
+                return glib::ControlFlow::Break;
+            }
+            attempts_c.set(n + 1);
+            if card_p.width() > 1 && card_p.height() > 1 {
+                place_modal_card(&parent_p, &stage_p, &card_p);
+                placed_p.set(true);
+                return glib::ControlFlow::Break;
+            }
+            glib::ControlFlow::Continue
+        });
+    }
+
+    let last_surface = Rc::new(Cell::new(None::<(f64, f64)>));
+    let drag = gtk::GestureDrag::new();
+    drag.set_button(1);
+    let last_b = last_surface.clone();
+    let card_b = card.clone();
+    let stage_b = stage.clone();
+    let parent_b = parent.clone();
+    let placed_b = placed;
+    drag.connect_drag_begin(move |gesture, _, _| {
+        last_b.set(event_surface_pos(gesture));
+        placed_b.set(true);
+        let cw = card_b.width().max(1);
+        let ch = card_b.height().max(1);
+        let wa = work_area_of(&parent_b, &stage_b);
+        let (cx, cy) = stage_b.child_position(&card_b);
+        let (x, y) = wa.clamp_child(cw, ch, cx, cy);
+        stage_b.move_(&card_b, x, y);
+    });
+    let last_u = last_surface;
+    let card_u = card.clone();
+    let stage_u = stage.clone();
+    let parent_u = parent.clone();
+    drag.connect_drag_update(move |gesture, _, _| {
+        let Some(now) = event_surface_pos(gesture) else {
+            return;
+        };
+        let Some(prev) = last_u.get() else {
+            last_u.set(Some(now));
+            return;
+        };
+        last_u.set(Some(now));
+        let (ddx, ddy) = (now.0 - prev.0, now.1 - prev.1);
+        if ddx == 0.0 && ddy == 0.0 {
+            return;
+        }
+        let cw = card_u.width().max(1);
+        let ch = card_u.height().max(1);
+        let wa = work_area_of(&parent_u, &stage_u);
+        let (cx, cy) = stage_u.child_position(&card_u);
+        let (nx, ny) = wa.clamp_child(cw, ch, cx + ddx, cy + ddy);
+        stage_u.move_(&card_u, nx, ny);
+    });
+    header.add_controller(drag);
 
     let dismiss = Rc::new({
         let overlay = overlay.clone();

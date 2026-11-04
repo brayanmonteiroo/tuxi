@@ -1,5 +1,6 @@
 //! Binário da central de configurações TUXI.
 
+mod page_chrome;
 mod pages;
 mod shell;
 mod style;

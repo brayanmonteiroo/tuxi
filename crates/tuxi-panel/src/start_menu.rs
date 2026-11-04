@@ -192,6 +192,8 @@ fn launch_nested_spawn(app: &DesktopApp) -> Result<()> {
     }
     let cmd = wrap_flatpak_wayland(&cmd, &wd);
     let cmd = ensure_electron_basic_password_store(&cmd);
+    // Perfil isolado: evita single-instance Electron/Chromium a ativar a janela do host.
+    let cmd = ensure_electron_nested_user_data(&cmd, &app.id);
 
     debug!(app = %app.id, %cmd, wayland = %wd, "spawn no nested");
     Command::new("/bin/sh")
@@ -208,6 +210,7 @@ fn launch_nested_spawn(app: &DesktopApp) -> Result<()> {
         .env("PASSWORD_STORE", "basic")
         .env("CHROME_PASSWORD_STORE", "basic")
         .env("GTK_CSD", "0")
+        .env("QT_WAYLAND_DISABLE_WINDOWDECORATION", "1")
         .env_remove("DISPLAY")
         .env_remove("KDE_FULL_SESSION")
         .env_remove("KDE_SESSION_VERSION")
@@ -220,20 +223,55 @@ fn launch_nested_spawn(app: &DesktopApp) -> Result<()> {
     Ok(())
 }
 
+fn looks_like_chromium_family(cmd: &str, app_id: &str) -> bool {
+    let lower = cmd.to_ascii_lowercase();
+    let id = app_id.to_ascii_lowercase();
+    lower.contains(".appimage")
+        || lower.contains("electron")
+        || lower.contains("chrom")
+        || lower.contains("chatgpt")
+        || id.contains("chatgpt")
+        || id.contains("openai")
+        || id.contains("electron")
+        || id.contains("chromium")
+        || id.contains("chrome")
+}
+
 /// Electron/AppImage: força store básico (sem KWallet) na CLI.
 fn ensure_electron_basic_password_store(cmd: &str) -> String {
     let lower = cmd.to_ascii_lowercase();
     if lower.contains("--password-store=") {
         return cmd.to_string();
     }
-    if lower.contains(".appimage")
-        || lower.contains("electron")
-        || lower.contains("chrom")
-    {
+    if looks_like_chromium_family(cmd, "") {
         format!("{cmd} --password-store=basic")
     } else {
         cmd.to_string()
     }
+}
+
+/// Isola o perfil Chromium/Electron no nested (single-instance usa ~/.config partilhado).
+fn ensure_electron_nested_user_data(cmd: &str, app_id: &str) -> String {
+    if !looks_like_chromium_family(cmd, app_id) {
+        return cmd.to_string();
+    }
+    if cmd.contains("--user-data-dir=") {
+        return cmd.to_string();
+    }
+    let runtime = std::env::var("XDG_RUNTIME_DIR").unwrap_or_else(|_| "/tmp".into());
+    let safe: String = app_id
+        .chars()
+        .map(|c| {
+            if c.is_ascii_alphanumeric() || c == '-' || c == '_' || c == '.' {
+                c
+            } else {
+                '_'
+            }
+        })
+        .collect();
+    let dir = format!("{runtime}/tuxi-nested-electron/{safe}");
+    let _ = std::fs::create_dir_all(&dir);
+    format!("{cmd} --user-data-dir={dir}")
 }
 
 /// Flatpak limpa env — injeta `--env=` após `flatpak run`.
@@ -245,11 +283,15 @@ fn wrap_flatpak_wayland(cmd: &str, wd: &str) -> String {
     else {
         return cmd.to_string();
     };
+    let runtime = std::env::var("XDG_RUNTIME_DIR").unwrap_or_else(|_| "/tmp".into());
     format!(
         "flatpak run --env=WAYLAND_DISPLAY={wd} --env=GDK_BACKEND=wayland \
          --env=QT_QPA_PLATFORM=wayland --env=ELECTRON_OZONE_PLATFORM_HINT=wayland \
          --env=PASSWORD_STORE=basic --env=CHROME_PASSWORD_STORE=basic \
-         --env=XDG_CURRENT_DESKTOP=TUXI:labwc {rest}"
+         --env=XDG_CURRENT_DESKTOP=TUXI:labwc \
+         --env=XDG_CONFIG_HOME={runtime}/tuxi-nested-flatpak-config \
+         --env=XDG_CACHE_HOME={runtime}/tuxi-nested-flatpak-cache \
+         {rest}"
     )
 }
 

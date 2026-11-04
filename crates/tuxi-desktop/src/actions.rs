@@ -137,7 +137,7 @@ pub(crate) fn create_folder(desktop: &Path, name: &str) -> Result<PathBuf> {
 }
 
 pub(crate) fn create_empty_file(desktop: &Path, name: &str) -> Result<PathBuf> {
-    let name = sanitize_name(name, "Arquivo vazio.txt");
+    let name = sanitize_name(name, "Arquivo vazio");
     let path = unique_path(desktop, &name);
     fs::write(&path, "").with_context(|| format!("criar {}", path.display()))?;
     Ok(path)
