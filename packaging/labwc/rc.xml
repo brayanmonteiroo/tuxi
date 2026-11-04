@@ -65,12 +65,10 @@
     <default />
   </mouse>
 
-  <!-- Apps abrem maximizados; SSD TUXI por omissão.
-       Electron/Chromium já trazem CSD — SSD em cima duplicava a barra. -->
+  <!-- Tamanho inicial = o que o app pede (default/hints). Sem Maximize
+       forçado — se a app gravar “maximizado” ao fechar, ela própria
+       restaura (como no KDE). Electron/Chromium: CSD próprio. -->
   <windowRules>
-    <windowRule identifier="*">
-      <action name="Maximize" />
-    </windowRule>
     <windowRule identifier="*" serverDecoration="yes" />
     <windowRule identifier="*chatgpt*" serverDecoration="no" />
     <windowRule identifier="chatgpt" serverDecoration="no" />

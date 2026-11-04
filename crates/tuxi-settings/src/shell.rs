@@ -180,11 +180,6 @@ impl SimpleComponent for SettingsModel {
             });
         });
 
-        let win = root.clone();
-        gtk::glib::idle_add_local_once(move || {
-            win.maximize();
-        });
-
         ComponentParts { model, widgets }
     }
 
